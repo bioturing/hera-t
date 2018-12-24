@@ -1,0 +1,15 @@
+/*
+
+!.gitignore
+
+!/src
+/src/**
+!/src/*.c
+!/src/*.h
+
+!/zlib
+
+!build.sh
+!build_win.sh
+!Makefile
+!README.md
