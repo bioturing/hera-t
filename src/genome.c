@@ -1,5 +1,4 @@
 #include <assert.h>
-#include <malloc.h>
 
 #include "bwt.h"
 #include "interval_tree.h"

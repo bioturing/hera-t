@@ -7,6 +7,7 @@
 #include "io_utils.h"
 #include "kmhash.h"
 #include "verbose.h"
+#include "utils.h"
 
 #define CUT_OFF_THRES			0.01
 

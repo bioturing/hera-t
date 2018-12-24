@@ -27,6 +27,7 @@ SRC = src/alignment.c 				\
       src/single_cell.c 			\
       src/utils.c 				\
       src/verbose.c 				\
+      src/library_type.c 			\
       src/main.c
 
 all:

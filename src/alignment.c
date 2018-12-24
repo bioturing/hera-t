@@ -3,7 +3,6 @@
 #include <string.h>
 #include <assert.h>
 #include <pthread.h>
-#include <malloc.h>
 
 #include "alignment.h"
 #include "dynamic_alignment.h"
