@@ -6,5 +6,6 @@
 # Change logs
 
 2018-12-24 (0.1.2):
+
     * Init repo
 
