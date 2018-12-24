@@ -1,6 +1,8 @@
 #ifndef _OPT_H_
 #define _OPT_H_
 
+#include "library_type.h"
+
 struct opt_index_t {
 	char *genome;
 	char *gtf;

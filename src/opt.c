@@ -3,7 +3,6 @@
 #include "opt.h"
 #include "utils.h"
 #include "verbose.h"
-#include "library_type.h"
 
 #if defined(_MSC_VER)
 #define __OPT_ERROR(fmt, ...) do {					       \
@@ -248,7 +247,7 @@ struct opt_count_t *get_opt_count(int argc, char *argv[])
 			opt_check_num(argc - pos, argv + pos);
 			int type = atoi(argv[pos + 1]);
 			opt->lib = get_library(type);
-			if (!opt->lib.bc_len == -1)
+			if (opt->lib.bc_len == -1)
 				__OPT_ERROR("Invalid library type");
 		} else if (!strcmp(argv[pos], "--dump-align")) {
 			opt->is_dump_align = 1;

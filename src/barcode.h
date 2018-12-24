@@ -4,7 +4,6 @@
 #include "attribute.h"
 #include "kmhash.h"
 #include "opt.h"
-#include "utils.h"
 
 void init_barcode(struct gene_info_t *g, struct library_t lib);
 
