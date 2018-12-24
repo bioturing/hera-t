@@ -14,9 +14,6 @@
 #define SIZE_16MB		16777216
 #define SIZE_128MB		134217728
 
-#define BC_LEN			16
-#define UMI_LEN			10
-#define R1_LEN			26
 #define GENE_BIT_LEN		22
 
 #define GENE_MASK		UINT64_C(0x3fffff)
