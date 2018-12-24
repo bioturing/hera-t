@@ -50,7 +50,7 @@ void print_count_usage()
 	__VERBOSE("-o\t: Output directory name\n");
 	__VERBOSE("-p\t: Output file prefix\n");
 	__VERBOSE("-l\t: Library types\n");
-	__VERBOSE("\t%u: 10X-Chromium 5' protocol\n", CHROMIUM_5);
+	__VERBOSE("\t\t%u: 10X-Chromium 5' protocol\n", CHROMIUM_5);
 	//__VERBOSE("--count-intron\t: Count both exonic and intronic reads\n");
 	__VERBOSE("\n");
 }
@@ -249,6 +249,7 @@ struct opt_count_t *get_opt_count(int argc, char *argv[])
 			opt->lib = get_library(type);
 			if (opt->lib.bc_len == -1)
 				__OPT_ERROR("Invalid library type");
+			pos += 2;
 		} else if (!strcmp(argv[pos], "--dump-align")) {
 			opt->is_dump_align = 1;
 			++pos;
