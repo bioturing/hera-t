@@ -12,6 +12,8 @@ struct library_t {
         int16_t umi_len;
 };
 
+int8_t check_valid_library(const int16_t type);
+
 struct library_t get_library(const int16_t type);
 
 #endif

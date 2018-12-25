@@ -246,9 +246,9 @@ struct opt_count_t *get_opt_count(int argc, char *argv[])
 		} else if (!strcmp(argv[pos], "-l")) {
 			opt_check_num(argc - pos, argv + pos);
 			int type = atoi(argv[pos + 1]);
-			opt->lib = get_library(type);
-			if (opt->lib.bc_len == -1)
+			if (!check_valid_library(type))
 				__OPT_ERROR("Invalid library type");
+			opt->lib = get_library(type);
 			pos += 2;
 		} else if (!strcmp(argv[pos], "--dump-align")) {
 			opt->is_dump_align = 1;

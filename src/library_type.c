@@ -1,19 +1,18 @@
 #include "library_type.h"
 
 const int16_t n_type = 1;
-const int16_t protocol_bc[] = {16};
-const int16_t protocol_umi[] = {10};
+const struct library_t protocol[] = {
+        {16, 10}
+};
+
+int8_t check_valid_library(const int16_t type)
+{
+        if (type < 0 || type >= n_type)
+                return 0;
+        return 1;
+}
 
 struct library_t get_library(const int16_t type)
 {
-        struct library_t lib;
-
-        lib.bc_len = -1;
-
-        if (type >= 0 && type < n_type){
-                lib.bc_len = protocol_bc[type];
-                lib.umi_len = protocol_umi[type];
-        }
-
-        return lib;
+        return protocol[type];
 }
