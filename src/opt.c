@@ -18,7 +18,7 @@
 
 void print_usage()
 {
-	__VERBOSE("Version: %d.%d\n", PROG_VERSION_MAJOR, PROG_VERSION_MINOR);
+	__VERBOSE("Version: %d.%d.%d\n", PROG_VERSION_MAJOR, PROG_VERSION_MINOR, PROG_VERSION_FIX);
 	__VERBOSE("\n");
 	__VERBOSE("Usage: ./HeraT <CMD> [options] ...\n");
 	__VERBOSE("\n");
@@ -30,7 +30,7 @@ void print_usage()
 
 void print_index_usage()
 {
-	__VERBOSE("Version: %d.%d\n", PROG_VERSION_MAJOR, PROG_VERSION_MINOR);
+	__VERBOSE("Version: %d.%d.%d\n", PROG_VERSION_MAJOR, PROG_VERSION_MINOR, PROG_VERSION_FIX);
 	__VERBOSE("\n");
 	__VERBOSE("Build HeraT index\n");
 	__VERBOSE("\n");
@@ -40,7 +40,7 @@ void print_index_usage()
 
 void print_count_usage()
 {
-	__VERBOSE("Version: %d.%d\n", PROG_VERSION_MAJOR, PROG_VERSION_MINOR);
+	__VERBOSE("Version: %d.%d.%d\n", PROG_VERSION_MAJOR, PROG_VERSION_MINOR, PROG_VERSION_FIX);
 	__VERBOSE("\n");
 	__VERBOSE("Generating gene count table\n");
 	__VERBOSE("\n");
