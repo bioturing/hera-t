@@ -49,7 +49,9 @@ void print_count_usage()
 	__VERBOSE("-t\t: Number of threads\n");
 	__VERBOSE("-o\t: Output directory name\n");
 	__VERBOSE("-p\t: Output file prefix\n");
-	__VERBOSE("--count-intron\t: Count both exonic and intronic reads\n");
+	__VERBOSE("-l\t: Library types\n");
+	__VERBOSE("\t\t%u: 10X-Chromium 5' protocol\n", CHROMIUM_5);
+	//__VERBOSE("--count-intron\t: Count both exonic and intronic reads\n");
 	__VERBOSE("\n");
 }
 
@@ -60,6 +62,8 @@ static struct opt_count_t *init_opt_count()
 	opt->out_dir = ".";
 	opt->temp_dir = ".";
 	opt->prefix = "HeraT";
+	opt->n_threads = 1;
+	opt->lib = get_library(0);
 	opt->n_threads = 1;
 	opt->is_dump_align = 0;
 	opt->count_intron = 0;
@@ -239,6 +243,13 @@ struct opt_count_t *get_opt_count(int argc, char *argv[])
 			opt->n_files = n;
 			opt->right_file = argv + pos + 1;
 			pos += (n + 1);
+		} else if (!strcmp(argv[pos], "-l")) {
+			opt_check_num(argc - pos, argv + pos);
+			int type = atoi(argv[pos + 1]);
+			if (!check_valid_library(type))
+				__OPT_ERROR("Invalid library type");
+			opt->lib = get_library(type);
+			pos += 2;
 		} else if (!strcmp(argv[pos], "--dump-align")) {
 			opt->is_dump_align = 1;
 			++pos;

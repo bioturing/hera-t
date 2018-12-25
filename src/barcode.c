@@ -1,11 +1,13 @@
 #include <pthread.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "barcode.h"
 #include "io_utils.h"
 #include "kmhash.h"
 #include "verbose.h"
+#include "utils.h"
 
 #define CUT_OFF_THRES			0.01
 
@@ -29,13 +31,17 @@ struct umi_bundle_t {
 const uint64_t pow5_r[] = {1ull, 5ull, 25ull, 125ull, 625ull, 3125ull, 15625ull, 78125ull, 390625ull, 1953125ull, 9765625ull, 48828125ull, 244140625ull, 1220703125ull, 6103515625ull, 30517578125ull, 152587890625ull, 762939453125ull, 3814697265625ull, 19073486328125ull, 95367431640625ull, 476837158203125ull, 2384185791015625ull, 11920928955078125ull, 59604644775390625ull, 298023223876953125ull, 1490116119384765625ull};
 
 struct sc_cell_t *CBs;
-int n_bc;
+int32_t n_bc;
+int16_t bc_len, umi_len;
 struct gene_info_t genes;
 
-void init_barcode(struct gene_info_t *g)
+void init_barcode(struct gene_info_t *g, struct library_t lib)
 {
 	extern struct gene_info_t genes;
 	memcpy(&genes, g, sizeof(struct gene_info_t));
+
+	bc_len = lib.bc_len;
+	umi_len = lib.umi_len;
 }
 
 static void insertion_sort(struct sc_cell_t *b, struct sc_cell_t *e)
@@ -135,7 +141,7 @@ void cut_off_barcode(struct kmhash_t *h)
 	for (i = 0; i < n_bc; ++i) {
 		bc_idx = CBs[i].idx;
 		flag = 0;
-		for (j = 0; j < BC_LEN; ++j) {
+		for (j = 0; j < bc_len; ++j) {
 			ch = (bc_idx / pow5_r[j]) % 5;
 			tmp_idx = bc_idx - pow5_r[j] * ch;
 			for (c = 0; c < NNU; ++c) {
@@ -197,7 +203,7 @@ void correct_barcode(struct kmhash_t *h)
 		bc_idx = CBs[i].idx;
 		cnt_new = 0;
 		new_bc = 0;
-		for (k = 0; k < BC_LEN; ++k) {
+		for (k = 0; k < bc_len; ++k) {
 			ch = (bc_idx / pow5_r[k]) % 5;
 			tmp_idx = bc_idx - ch * pow5_r[k];
 			for (c = 0; c < NNU; ++c) {
@@ -229,7 +235,7 @@ void print_barcodes(const char *out_dir)
 	fp = xfopen(out_path, "w");
 
 	for (i = 0; i < n_bc; ++i) {
-		seq = num2seq(CBs[i].idx, BC_LEN);
+		seq = num2seq(CBs[i].idx, bc_len);
 		fprintf(fp, "%s\n", seq);
 		free(seq);
 	}
@@ -295,7 +301,7 @@ void correct_umi(struct sc_cell_t *bc)
 		gene = __get_gene(h->bucks[i]);
 		has_Ns = 0;
 
-		for (k = 0; k < UMI_LEN; ++k) {
+		for (k = 0; k < umi_len; ++k) {
 			ch = (umi_idx / pow5_r[k]) % 5;
 			has_Ns += (ch == NNU);
 		}
@@ -306,7 +312,7 @@ void correct_umi(struct sc_cell_t *bc)
 		}
 		flag = 0;
 
-		for (k = 0; k < UMI_LEN; ++k) {
+		for (k = 0; k < umi_len; ++k) {
 			ch = (umi_idx / pow5_r[k]) % 5;
 			for (c = 0; c < NNU; ++c) {
 				if (c == ch)

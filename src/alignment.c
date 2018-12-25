@@ -3,7 +3,6 @@
 #include <string.h>
 #include <assert.h>
 #include <pthread.h>
-#include <malloc.h>
 
 #include "alignment.h"
 #include "dynamic_alignment.h"
@@ -598,12 +597,11 @@ int check_indel_map(struct read_t *read, struct worker_bundle_t *bundle)
 }
 
 void store_read_chromium(struct read_t *r, struct raw_alg_t *alg,
-			 struct kmhash_t *bc_table)
+			 struct kmhash_t *bc_table, struct library_t lib)
 {
 	int i, g, gene;
 	uint64_t bc_idx, umi_gene_idx;
-	if (r->len != R1_LEN)
-		return;
+
 	gene = -1;
 	for (i = 0; i < alg->n; ++i) {
 		if (alg->cands[i].score < alg->max_score)
@@ -620,10 +618,10 @@ void store_read_chromium(struct read_t *r, struct raw_alg_t *alg,
 	if (gene == -1)
 		return;
 	bc_idx = umi_gene_idx = 0;
-	for (i = 0; i < BC_LEN; ++i)
+	for (i = 0; i < lib.bc_len; ++i)
 		bc_idx = bc_idx * 5 + nt4_table[(int)r->seq[i]];
-	for (i = 0; i < UMI_LEN; ++i)
-		umi_gene_idx = umi_gene_idx * 5 + nt4_table[(int)r->seq[BC_LEN + i]];
+	for (i = 0; i < lib.umi_len; ++i)
+		umi_gene_idx = umi_gene_idx * 5 + nt4_table[(int)r->seq[lib.bc_len + i]];
 	umi_gene_idx = umi_gene_idx << GENE_BIT_LEN | gene;
 	kmhash_put_bc_umi(bc_table, bc_idx, umi_gene_idx);
 }
@@ -697,6 +695,10 @@ void align_chromium_read(struct read_t *read1, struct read_t *read2,
 	if (!read1->name || !read1->seq || !read2->name || !read2->seq)
 		return;
 
+	int r1_len = bundle->lib.bc_len + bundle->lib.umi_len;
+	if (read1->len != r1_len)
+		__ERROR("Read lenght of %s is not consistent with library type.\n Expect %u.\n Receive %u.\n", read1->name, r1_len, read1->len);
+
 	++bundle->result->nread;
 	reinit_bundle(bundle);
 
@@ -712,7 +714,8 @@ void align_chromium_read(struct read_t *read1, struct read_t *read2,
 		ret = check_indel_map(read2, bundle);
 
 	if (ret == 1){
-		store_read_chromium(read1, bundle->alg_array, bundle->bc_table);
+		store_read_chromium(read1, bundle->alg_array, bundle->bc_table,
+					bundle->lib);
 		// store_exon(read1, bundle->alg_array);
 		++bundle->result->exon;
 	} else if (ret == 2) {

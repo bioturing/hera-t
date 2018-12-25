@@ -18,6 +18,7 @@
 #include "kmhash.h"
 #include "khash.h"
 #include "pthread_barrier.h"
+#include "library_type.h"
 
 #if defined(_MSC_VER)
 #include <time.h>
@@ -155,6 +156,7 @@ struct worker_bundle_t {
 	struct array_2D_t *tmp_array;
 	// struct stream_t *unmap_st;
 	struct shared_fstream_t *align_fstream;
+	struct library_t lib;
 };
 
 struct pair_buffer_t {

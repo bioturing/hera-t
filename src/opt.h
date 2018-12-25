@@ -1,6 +1,8 @@
 #ifndef _OPT_H_
 #define _OPT_H_
 
+#include "library_type.h"
+
 struct opt_index_t {
 	char *genome;
 	char *gtf;
@@ -21,6 +23,9 @@ struct opt_count_t {
 	char *temp_dir;
 	int is_dump_align;
 	int count_intron;
+
+	// Library type
+	struct library_t lib;
 };
 
 void print_usage();

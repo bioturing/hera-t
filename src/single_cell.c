@@ -74,6 +74,9 @@ void single_cell(int pos, int argc, char *argv[])
 
 	load_index(opt->index, opt->count_intron);
 
+	extern struct gene_info_t genes;
+	init_barcode(&genes, opt->lib);
+
 	single_cell_process(opt);
 }
 
@@ -157,6 +160,7 @@ void single_cell_process(struct opt_count_t *opt)
 		worker_bundles[i].bc_table = bc_table;
 		worker_bundles[i].lock_count = &lock_count;
 		worker_bundles[i].result = &result;
+		worker_bundles[i].lib = opt->lib;
 		if (opt->is_dump_align)
 			worker_bundles[i].align_fstream = align_fstream + i;
 		else
@@ -376,9 +380,6 @@ void load_index(const char *prefix, int32_t count_intron)
 	strcpy(tmp_dir, prefix); strcat(tmp_dir, ".hash");
 	__VERBOSE("Loading kmer hash table...\n");
 	alignment_init_hash(tmp_dir);
-
-	extern struct gene_info_t genes;
-	init_barcode(&genes);
 
 	/*
 
