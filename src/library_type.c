@@ -1,8 +1,9 @@
 #include "library_type.h"
 
-const int16_t n_type = 1;
+const int16_t n_type = 2;
 const struct library_t protocol[] = {
-        {16, 10} // 10X Chromium 5'
+        {16, 10},       // 10X Chromium 3' - v2
+        {16, 12}        // 10X Chromium 3' - v3
 };
 
 int8_t check_valid_library(const int16_t type)

@@ -5,7 +5,8 @@
 #include <stdint.h>
 
 // protocol index
-#define CHROMIUM_5		0
+#define CHROMIUM3_V2		0
+#define CHROMIUM3_V3		1
 
 struct library_t {
         int16_t bc_len;
