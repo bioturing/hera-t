@@ -28,7 +28,7 @@ static void recursive_sort_##name(rs_type *beg, rs_type *end, int n_bits, int s)
 	int size = 1 << n_bits, m = size - 1; \
 	struct rs_bucket_##name *k; \
 	struct rs_bucket_##name *b = \
-		(struct rs_bucket_##name*)calloc(size, sizeof(struct rs_bucket_##name)); \
+		(struct rs_bucket_##name*)alloca(size * sizeof(struct rs_bucket_##name)); \
 	struct rs_bucket_##name *be = b + size; \
 	for (k = b; k != be; ++k) k->b = k->e = beg; \
 	for (i = beg; i != end; ++i) ++b[get_block(*i, s, m)].e; \
