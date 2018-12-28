@@ -9,7 +9,7 @@
 | 2018-12-26 -> 2018-12-28 | 2018-12-27 | 0.2.0              | Add library Chromium 3' v3                                                            | chi Thao           | &#8730; |
 | 2018-12-26 -> 2018-12-28 |            | 0.1.4              | Benchmark hera-T version 0.1.4 (Cell Ranger 3.0, Alevin v0.12.0)                      | chi Thao           | current |
 | 2018-12-26 -> 2018-12-28 |            | global             | Manuscript for benchmark version                                                      | Hy + thay Son      | current |
-| 2018-12-28 -> ????-??-?? |            | global             | Investigate random crash of hera-T                                                    | Thang              | current |
+| 2018-12-28 -> 2019-01-02 |            | global             | Investigate random crash of hera-T                                                    | Thang              | current |
 |                          |            | 0.?.?              | Implement cell hashing (library type)                                                 |                    |         |
 |                          |            | global             | Write manual                                                                          |                    |         |
 |                          |            | global             | Write blog                                                                            |                    |         |
