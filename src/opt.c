@@ -50,7 +50,8 @@ void print_count_usage()
 	__VERBOSE("-o\t: Output directory name\n");
 	__VERBOSE("-p\t: Output file prefix\n");
 	__VERBOSE("-l\t: Library types\n");
-	__VERBOSE("\t\t%u: 10X-Chromium 5' protocol\n", CHROMIUM_5);
+	__VERBOSE("\t\t%u: 10X-Chromium 3' (v2) protocol\n", CHROMIUM3_V2);
+	__VERBOSE("\t\t%u: 10X-Chromium 3' (v3) protocol\n", CHROMIUM3_V3);
 	//__VERBOSE("--count-intron\t: Count both exonic and intronic reads\n");
 	__VERBOSE("\n");
 }
