@@ -34,3 +34,7 @@
 2018-12-27 (0.1.4) (release candidate):
 
     * Fix memory leak in version 0.1.3
+    
+2018-12-28 (0.2.0) (release candidate):
+
+    * Support Chromium 3' v3 library
