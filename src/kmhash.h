@@ -52,8 +52,8 @@ struct kmhash_t {
 	struct kmbucket_t *old_bucks;
 	int status;
 	int n_workers;
-	struct sem_wrap_t gsem;
-	// pthread_mutex_t *locks;
+	// struct sem_wrap_t gsem;
+	pthread_mutex_t *locks;
 	int *pos;
 };
 
@@ -75,7 +75,7 @@ struct kmhash_t *init_kmhash(kmint_t size, int n_threads);
 
 void kmhash_destroy(struct kmhash_t *h);
 
-void kmhash_put_bc_umi(struct kmhash_t *h, kmkey_t bc, kmkey_t umi);
+void kmhash_put_bc_umi(struct kmhash_t *h, kmkey_t bc, kmkey_t umi, pthread_mutex_t *lock);
 
 void umihash_put_umi_single(struct umi_hash_t *h, kmkey_t key);
 

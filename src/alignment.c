@@ -597,7 +597,8 @@ int check_indel_map(struct read_t *read, struct worker_bundle_t *bundle)
 }
 
 void store_read_chromium(struct read_t *r, struct raw_alg_t *alg,
-			 struct kmhash_t *bc_table, struct library_t lib)
+			 struct kmhash_t *bc_table, struct library_t lib,
+			 pthread_mutex_t *lock_hash)
 {
 	int i, g, gene;
 	uint64_t bc_idx, umi_gene_idx;
@@ -623,7 +624,7 @@ void store_read_chromium(struct read_t *r, struct raw_alg_t *alg,
 	for (i = 0; i < lib.umi_len; ++i)
 		umi_gene_idx = umi_gene_idx * 5 + nt4_table[(int)r->seq[lib.bc_len + i]];
 	umi_gene_idx = umi_gene_idx << GENE_BIT_LEN | gene;
-	kmhash_put_bc_umi(bc_table, bc_idx, umi_gene_idx);
+	kmhash_put_bc_umi(bc_table, bc_idx, umi_gene_idx, lock_hash);
 }
 
 /*
@@ -715,7 +716,7 @@ void align_chromium_read(struct read_t *read1, struct read_t *read2,
 
 	if (ret == 1){
 		store_read_chromium(read1, bundle->alg_array, bundle->bc_table,
-					bundle->lib);
+					bundle->lib, bundle->lock_hash);
 		// store_exon(read1, bundle->alg_array);
 		++bundle->result->exon;
 	} else if (ret == 2) {

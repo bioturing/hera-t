@@ -308,8 +308,10 @@ void kmhash_resize_single(struct kmhash_t *h)
 void kmhash_resize(struct kmhash_t *h)
 {
 	int i;
+	// for (i = 0; i < h->n_workers; ++i)
+	// 	sem_wrap_wait(&(h->gsem));
 	for (i = 0; i < h->n_workers; ++i)
-		sem_wrap_wait(&(h->gsem));
+		pthread_mutex_lock(h->locks + i);
 
 	if (h->size == KMHASH_MAX_SIZE)
 		__ERROR("The barcodes hash table is too big (exceeded %llu)",
@@ -320,8 +322,10 @@ void kmhash_resize(struct kmhash_t *h)
 	else
 		kmhash_resize_multi(h);
 
+	// for (i = 0; i < h->n_workers; ++i)
+	// 	sem_wrap_post(&(h->gsem));
 	for (i = 0; i < h->n_workers; ++i)
-		sem_wrap_post(&(h->gsem));
+		pthread_mutex_unlock(h->locks + i);
 }
 
 void *umiresize_worker(void *data)
@@ -483,15 +487,17 @@ void umihash_put_umi_single(struct umi_hash_t *h, kmkey_t key)
 		__ERROR("Fatal error: unable to resize umi hash");
 }
 
-void kmhash_put_bc_umi(struct kmhash_t *h, kmkey_t bc, kmkey_t umi)
+void kmhash_put_bc_umi(struct kmhash_t *h, kmkey_t bc, kmkey_t umi, pthread_mutex_t *lock)
 {
 	kmint_t k;
 
-	sem_wrap_wait(&(h->gsem));
+	// sem_wrap_wait(&(h->gsem));
+	pthread_mutex_lock(lock);
 	k = kmhash_put_bc(h, bc);
 	if (k < KMHASH_MAX_SIZE)
 		kmhash_put_umi(h->bucks + k, umi, h->n_workers);
-	sem_wrap_post(&(h->gsem));
+	// sem_wrap_post(&(h->gsem));
+	pthread_mutex_unlock(lock);
 
 	if (k == KMHASH_MAX_SIZE) {
 		do {
@@ -500,66 +506,22 @@ void kmhash_put_bc_umi(struct kmhash_t *h, kmkey_t bc, kmkey_t umi)
 				__sync_val_compare_and_swap32(&(h->status), KMHASH_BUSY, KMHASH_IDLE);
 			}
 
-			sem_wrap_wait(&(h->gsem));
+			// sem_wrap_wait(&(h->gsem));
+			pthread_mutex_lock(lock);
 			k = kmhash_put_bc(h, bc);
 			if (k < KMHASH_MAX_SIZE)
 				kmhash_put_umi(h->bucks + k, umi, h->n_workers);
-			sem_wrap_post(&(h->gsem));
+			// sem_wrap_post(&(h->gsem));
+			pthread_mutex_unlock(lock);
 		} while (k == KMHASH_MAX_SIZE);
 	}
 }
-
-// kmint_t kmhash_get(struct kmhash_t *h, kmkey_t key)
-// {
-// 	kmint_t mask, step, i, n_probe;
-// 	kmkey_t k;
-// 	mask = h->size - 1;
-// 	k = __hash_int2(key);
-// 	i = k & mask;
-// 	n_probe = h->n_probe;
-// 	if (h->bucks[i].idx == key)
-// 		return i;
-// 	step = 1;
-// 	do {
-// 		i = (i + (step * (step + 1)) / 2) & mask;
-// 		if (h->bucks[i].idx == key)
-// 			return i;
-// 		++step;
-// 	} while (step < n_probe);
-// 	return h->size;
-// }
-
-// struct kmhash_t *init_kmhash(kmint_t size, int n_threads)
-// {
-//         __VERBOSE("Initilizing hash table\n");
-// 	struct kmhash_t *h;
-// 	kmint_t i;
-// 	kmkey_t tombstone;
-// 	h = calloc(1, sizeof(struct kmhash_t));
-// 	h->size = size;
-// 	__round_up_kmint(h->size);
-// 	h->bucks = malloc(h->size * sizeof(struct kmbucket_t));
-// 	h->n_probe = estimate_probe(h->size);
-//         __VERBOSE("Probe number: %d\n", (int)h->n_probe);
-
-// 	tombstone = (kmkey_t)-1;
-// 	for (i = 0; i < h->size; ++i)
-// 		h->bucks[i].idx = tombstone;
-
-// 	h->n_workers = n_threads;
-// 	h->locks = calloc(n_threads, sizeof(pthread_mutex_t));
-// 	int k;
-// 	for (k = 0; k < n_threads; ++k)
-// 		pthread_mutex_init(h->locks + k, NULL);
-// 	h->status = KMHASH_IDLE;
-
-// 	return h;
-// }
 
 struct kmhash_t *init_kmhash(kmint_t size, int n_threads)
 {
 	struct kmhash_t *h;
 	kmint_t i;
+	int k;
 
 	h = calloc(1, sizeof(struct kmhash_t));
 	h->size = size;
@@ -571,7 +533,10 @@ struct kmhash_t *init_kmhash(kmint_t size, int n_threads)
 	}
 
 	h->n_workers = n_threads;
-	sem_wrap_init(&(h->gsem), n_threads);
+	// sem_wrap_init(&(h->gsem), n_threads);
+	h->locks = malloc(n_threads * sizeof(pthread_mutex_t));
+	for (k = 0; k < n_threads; ++k)
+		pthread_mutex_init(h->locks + k, NULL);
 	h->status = KMHASH_IDLE;
 
 	return h;
@@ -589,14 +554,18 @@ void kmhash_destroy(struct kmhash_t *h)
 {
 	if (!h) return;
 	kmint_t i;
+	int k;
 
-	sem_wrap_destroy(&(h->gsem));
+	// sem_wrap_destroy(&(h->gsem));
 	for (i = 0; i < h->size; ++i) {
 		if (h->bucks[i].idx == TOMB_STONE)
 			continue;
 		sem_wrap_destroy(&(h->bucks[i].bsem));
 		umihash_destroy(h->bucks[i].umis);
 	}
+	for (k = 0; k < h->n_workers; ++k)
+		pthread_mutex_destroy(h->locks + k);
+	free(h->locks);
 	free(h->bucks);
 	free(h->pos);
 	free(h);
