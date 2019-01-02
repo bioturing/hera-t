@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <errno.h>
 #include "semaphore_wrapper.h"
 
 #ifdef _MSC_VER
@@ -23,7 +24,9 @@ inline void sem_wrap_wait(struct sem_wrap_t *sem)
 #if defined (__APPLE__) && defined (__MACH__)
 	dispatch_semaphore_wait(sem->sem, DISPATCH_TIME_FOREVER);
 #else
-	sem_wait(&sem->sem);
+	while (sem_wait(&sem->sem) == -1 && errno == EINTR)
+		continue;
+	// sem_wait(&sem->sem);
 #endif
 }
 
