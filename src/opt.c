@@ -79,7 +79,11 @@ static struct opt_index_t *init_opt_index()
 	opt->genome = NULL;
 	opt->gtf = NULL;
 	opt->prefix = NULL;
+#ifdef _WIN32
+	opt->idx_dir = _T("./");
+#else
 	opt->idx_dir = "./";
+#endif
 	opt->k = 29;
 	opt->bwt = 1;
 	return opt;
@@ -144,6 +148,62 @@ static int opt_count_list(int argc, char **argv)
 	return n;
 }
 
+#ifdef _WIN32
+struct opt_index_t *get_opt_index(int argc, TCHAR *argv[])
+{
+	if (!argc) {
+		print_index_usage();
+		exit(EXIT_FAILURE);
+	}
+
+	struct opt_index_t *opt = init_opt_index();
+
+	int pos = 0;
+	while (pos < argc) {
+		if (!_tcscmp(argv[pos], _T("-t"))) {
+			opt_check_str(argc - pos, argv + pos);
+			opt->gtf = argv[pos + 1];
+			pos += 2;
+		} else if (!_tcscmp(argv[pos], _T("-p"))) {
+			opt_check_str(argc - pos, argv + pos);
+			opt->prefix = argv[pos + 1];
+			pos += 2;
+		} else if (!_tcscmp(argv[pos], _T("-g"))) {
+			opt_check_str(argc - pos, argv + pos);
+			opt->genome = argv[pos + 1];
+			pos += 2;
+		} else if (!_tcscmp(argv[pos], _T("-o"))) {
+			opt_check_str(argc - pos, argv + pos);
+			opt->idx_dir = argv[pos + 1];
+			pos += 2;
+		} else if (!_tcscmp(argv[pos], _T("-k"))) {
+			opt_check_num(argc - pos, argv + pos);
+			opt->k = atoi(argv[pos + 1]);
+			pos += 2;
+		} else if (!_tcscmp(argv[pos], _T("--no-bwt"))) {
+			opt->bwt = 0;
+			++pos;
+		} else if (!_tcscmp(argv[pos], _T("-h"))) {
+			print_index_usage();
+		} else {
+			__OPT_ERROR("Invalid option %s", argv[pos]);
+		}
+	}
+	check_valid_opt_index(opt);
+	int i;
+	for (i = 0; opt->prefix[i]; ++i) {
+		if ((opt->prefix[i] < 'A' || opt->prefix[i] > 'Z') &&
+		    (opt->prefix[i] < 'a' || opt->prefix[i] > 'z') &&
+		    (opt->prefix[i] < '0' || opt->prefix[i] > '9') &&
+		    !strchr("_-.", opt->prefix[i]))
+			__OPT_ERROR("Invalid prefix string %s (included character '%c')", opt->prefix, opt->prefix[i]);
+	}
+
+	// normalize_dir(opt->idx_dir);
+	make_dir(opt->idx_dir);
+	return opt;
+}
+#else
 struct opt_index_t *get_opt_index(int argc, char *argv[])
 {
 	if (!argc) {
@@ -198,6 +258,7 @@ struct opt_index_t *get_opt_index(int argc, char *argv[])
 	make_dir(opt->idx_dir);
 	return opt;
 }
+#endif
 
 struct opt_count_t *get_opt_count(int argc, char *argv[])
 {

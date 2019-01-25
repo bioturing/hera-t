@@ -12,6 +12,9 @@ struct opt_index_t {
 	int bwt;
 };
 
+#ifdef _WIN32
+#else
+#endif
 struct opt_count_t {
 	int n_files;
 	char **left_file;

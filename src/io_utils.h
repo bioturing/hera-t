@@ -7,9 +7,17 @@
 #include "attribute.h"
 #if defined(_MSC_VER)
 #include <BaseTsd.h>
+#include <Windows.h>
+#include <tchar.h>
+#include <wchar.h>
 typedef SSIZE_T ssize_t;
 #endif
 
+#ifdef _WIN32
+#define xfopen(file, mode) _xfopen(file, _T(mode))
+#define make_dir(path) _make_dir(path)
+#else
+#endif
 /* shared stream struct
  * Usage: multiple threads write data to single file, provide each thread a
  * buffer
@@ -22,11 +30,18 @@ struct shared_fstream_t {
 	int buf_len;
 };
 
-/* support openning file with UNICODE path */
-FILE *xfopen(const char *file_path, const char *mode);
+#ifdef _WIN32
+int windows_path_convert(TCHAR *path);
+#endif
+
+#ifdef _WIN32
+FILE *_xfopen(const TCHAR *file_path, const TCHAR *mode);
+#else
+FILE *_xfopen(const char *file_path, const char *mode);
+#endif
 
 /* fflush before close file */
-void xwfclose(FILE *f);
+void xfclose(FILE *f);
 
 /* check fread function read enough nmemb */
 size_t xfread(void *ptr, size_t size, size_t nmemb, FILE *stream);
@@ -37,15 +52,15 @@ size_t xfwrite(void *ptr, size_t size, size_t nmemb, FILE *stream);
 /* auto remove /n character if found */
 ssize_t xgetline(char **str, size_t *size, FILE *stream);
 
-/* remove redundant / character */
-void normalize_dir(char *path);
+/* get time */
+double realtime();
 
 /* make directory if is not exist */
-void make_dir(const char *path);
-
-/* get size of all file from file_path */
-size_t fetch_size(char **file_path, int n_file);
-
+#ifdef _WIN32
+void _make_dir(const TCHAR *path);
+#else
+void _make_dir(const char *path);
+#endif
 /* ------------ shared_stream_t utils ------------ */
 
 /* Init shared stream on n threads */

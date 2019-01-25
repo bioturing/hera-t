@@ -18,25 +18,68 @@
 #include "io_utils.h"
 #include "verbose.h"
 
-FILE *xfopen(const char *file_path, const char *mode) {
+#ifdef _WIN32
+int windows_path_convert(TCHAR *path) {
+	if (*path == NULL) {
+		__PERROR("windows path convert failed\n");
+		return 1;
+	}
+	size_t plen = _tcslen(path);
+	size_t i;
+	for (i = 0; i < plen; ++i) {
+		if (path[i] == _T('/')) {
+			path[i] = _T('\\');
+		}
+	}
+	return 0;
+}
+#endif
+
+#ifdef _WIN32
+FILE *_xfopen(const TCHAR *file_path, const TCHAR *mode)
+#else
+FILE *_xfopen(const char *file_path, const char *mode)
+#endif
+{
 	FILE *fi = NULL;
+#ifndef _MSC_VER
 	fi = fopen(file_path, mode);
 	if (!fi) {
 		if (strcmp(mode, "r") == 0 || strcmp(mode, "rb") == 0)
 			__ERROR("Unable to open file [%s] to read", file_path);
 		else if (strcmp(mode, "w") == 0 || strcmp(mode, "wb") == 0)
-			__ERROR("Unable to open file [%s] to read", file_path);
+			__ERROR("Unable to open file [%s] to write", file_path);
 		else
 			__ERROR("Unable to open file [%s]"
 				"with unknown mode [%s]", file_path, mode);
 	}
+#else
+	TCHAR *wpath = _tcsdup(file_path);
+	//windows_path_convert(wpath);
+	fi = _tfopen(wpath, mode);
+	if (fi == NULL) {
+		if (_tcscmp(mode, _T("r")) == 0 || _tcscmp(mode, _T("rb")) == 0)
+			__ERROR("Unable to open file [%ls] to read", file_path);
+		else if (_tcscmp(mode, _T("w")) == 0 || _tcscmp(mode, _T("wb")) == 0)
+			__ERROR("Unable to open file [%ls] to write", file_path);
+		else
+			__ERROR("Unable to open file [%ls]"
+				"with unknown mode [%ls]", file_path, mode);
+	}
+	__DEBUG("before lul\n");
+	__DEBUG("wpath debug %ls\n", wpath);
+	free(wpath);
+	__DEBUG("after lul\n");
+#endif
 	return fi;
 }
 
-void xwfclose(FILE *f)
+void xfclose(FILE *f)
 {
-	fflush(f);
-	fclose(f);
+	if (f) {
+		fclose(f);
+		f = NULL;
+	}
 }
 
 size_t xfread(void *ptr, size_t size, size_t nmemb, FILE *stream)
@@ -70,8 +113,25 @@ ssize_t xgetline(char **str, size_t *size, FILE *stream)
 	return ret;
 }
 
-void normalize_dir(char *path)
+#ifdef _WIN32
+void _normalize_dir(TCHAR *path)
+#else
+void _normalize_dir(char *path)
+#endif
 {
+#ifdef _WIN32
+	int len = _tcslen(path), i, j;
+	for (i = 0; i < len - 1; ) {
+		if (path[i] == _T('/') && path[i + 1] == _T('/')) {
+			// what is this? memmove?
+			for (j = i; j < len; ++j)
+				path[j] = path[j + 1];
+			--len;
+		} else {
+			++i;
+		}
+	}
+#else
 	int len = strlen(path), i, j;
 	for (i = 0; i < len - 1; ) {
 		if (path[i] == '/' && path[i + 1] == '/') {
@@ -83,10 +143,24 @@ void normalize_dir(char *path)
 			++i;
 		}
 	}
+#endif
 }
 
-void make_dir(const char *path)
+#ifdef _WIN32
+void _make_dir(const TCHAR *path)
+#else
+void _make_dir(const char *path)
+#endif
 {
+#ifdef _WIN32
+	struct stat st = { 0 };
+	if (_tstat(path, &st) == -1) {
+		if (_tmkdir(path)) {
+			perror("Could not make output directory");
+			exit(EXIT_FAILURE);
+		}
+	}
+#else
 	struct stat st = {0};
 	if (stat(path, &st) == -1) {
 		if (mkdir(path, 0700)) {
@@ -94,15 +168,24 @@ void make_dir(const char *path)
 			exit(EXIT_FAILURE);
 		}
 	}
+#endif
 }
 
-size_t fetch_size(char **file_path, int n_file)
+#ifdef _WIN32
+size_t _fetch_size(TCHAR **file_path, int n_file)
+#else
+size_t _fetch_size(char **file_path, int n_file)
+#endif
 {
 	size_t ret = 0;
 	FILE *fid;
 	int i;
 	for (i = 0; i < n_file; ++i) {
+#ifdef _WIN32
+		fid = xfopen(file_path[i], L"rb");
+#else
 		fid = xfopen(file_path[i], "rb");
+#endif
 		if (!fid)
 			__ERROR("Unable to open file: %s", file_path[i]);
 		fseek(fid, 0L, SEEK_END);

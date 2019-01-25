@@ -24,6 +24,18 @@ int8_t nt4_table[256] = {
 char *nt4_char = "ACGTN";
 char *rev_nt4_char = "TGCAN";
 
+#ifdef _WIN32
+TCHAR *tcs_concate(const TCHAR *str1, const TCHAR *str2)
+{
+	size_t len1 = _tcslen(str1);
+	size_t len2 = _tcslen(str2);
+	TCHAR *str3 = calloc((len1 + len2 + 1), sizeof(TCHAR));
+	_tcscpy(str3, str1);
+	_tcscpy(str3 + len1, str2);
+	return str3;
+}
+#endif
+
 char *str_concate(const char *str1, const char *str2)
 {
 	/* TODO: put this to depricated */

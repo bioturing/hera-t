@@ -3,6 +3,8 @@
 
 #if defined(_MSC_VER)
 #pragma warning(disable:4996)
+#define _UNICODE
+#define UNICODE
 #endif
 
 #include <assert.h>
@@ -25,6 +27,8 @@
 #include <windows.h>
 #include <getopt.h>
 #include <BaseTsd.h>
+#include <tchar.h>
+#include <wchar.h>
 #else
 #include <unistd.h>
 #include <sys/resource.h>
@@ -102,6 +106,10 @@
 } while (0)
 
 /*
+ * alias for _WIN32
+ */
+
+/*
  * Built-in function
  */
 
@@ -113,6 +121,10 @@ char *get_rev_complement(const char *seq, int len);
 
 /* reverse string */
 char *get_rev(const char *seq, int len);
+
+#ifdef _WIN32
+TCHAR *tcs_concate(const TCHAR *s1, const TCHAR *s2);
+#endif
 
 /* return new char* concate s1 and s2 */
 char *str_concate(const char *s1, const char *s2);
