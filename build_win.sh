@@ -1,6 +1,7 @@
 #!/bin/sh
 mkdir -p local
 
+git clone https://github.com/y-256/libdivsufsort libdivsufsort
 cd libdivsufsort
 mkdir -p build
 cd build
