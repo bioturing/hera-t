@@ -531,7 +531,7 @@ void build_transcript(const char *path)
 	trans->idx = realloc(trans->idx, l * sizeof(int));
 	trans->seq = realloc(trans->seq, l);
 	trans->tran_beg[trans->n] = l;
-	xwfclose(fp);
+	xfclose(fp);
 }
 
 void construct_hash(int k_s)
@@ -615,7 +615,7 @@ void dump_info(const char *path)
 	int i;
 	for (i = 0; i < trans->n; ++i)
 		xfwrite(trans->exons[i], sizeof(struct exon_t), trans->n_exon[i], fp);
-	xwfclose(fp);
+	xfclose(fp);
 }
 
 void free_info()

@@ -2,20 +2,22 @@
 #define _VERBOSE_H_
 
 #include <stdio.h>
+#include "utils.h"
+#include "io_utils.h"
 
 #if defined(_MSC_VER)
 #define __VERBOSE_INFO(tag, fmt, ...) do {				       \
-	fprintf(stderr, "[" tag "] " fmt, __VA_ARGS__);			       \
+	_ftprintf(stderr, _T("[" tag "] " fmt), __VA_ARGS__);			       \
 	fflush(stderr);							       \
 } while (0) /* VERBOSE_INFO */
 
 #define __VERBOSE_LOG(tag, fmt, ...) do {				       \
-	fprintf(stderr, "[" tag "] " fmt, __VA_ARGS__);			       \
+	_ftprintf(stderr, _T("[" tag "] " fmt), __VA_ARGS__);			       \
 	log_write("[" tag "] " fmt, __VA_ARGS__);				       \
 } while (0) /* VERBOSE_AND_LOG */
 
 #define __VERBOSE(fmt, ...) do {					       \
-	fprintf(stderr, fmt, __VA_ARGS__);				       \
+	_ftprintf(stderr, _T(fmt), __VA_ARGS__);				       \
 	fflush(stderr);							       \
 } while (0) /* VERBOSE */
 
@@ -30,7 +32,7 @@
 
 /* FIXME: Write error handler: i.e. delete temporary files */
 #define __ERROR(fmt, ...)do {						       \
-	fprintf(stderr, "[ERROR] " fmt "\n", __VA_ARGS__);		       \
+	_ftprintf(stderr, _T("[ERROR] " fmt "\n"), __VA_ARGS__);		       \
 	log_write("[ERROR] " fmt "\n", __VA_ARGS__);			       \
 	exit(EXIT_FAILURE);						       \
 } while(0) /* ERROR */
@@ -65,10 +67,18 @@
 } while(0) /* ERROR */
 #endif /* __MSC_VER */
 
+#ifdef _WIN32
+void init_log(const TCHAR *path);
+
+void log_write(const TCHAR *fmt, ...);
+
+void close_log();
+#else
 void init_log(const char *path);
 
 void log_write(const char *fmt, ...);
 
 void close_log();
+#endif
 
 #endif /* _VERBOSE_H_ */

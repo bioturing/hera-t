@@ -22,7 +22,7 @@
     <ProjectGuid>{2C13B3C9-7B68-41B3-A964-AB42F21B54E5}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>Hera011</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -41,13 +41,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -180,10 +180,12 @@
     <ClInclude Include="..\..\src\get_buffer.h" />
     <ClInclude Include="..\..\src\hash_table.h" />
     <ClInclude Include="..\..\src\index.h" />
+    <ClInclude Include="..\..\src\interval_tree.h" />
     <ClInclude Include="..\..\src\io_utils.h" />
     <ClInclude Include="..\..\src\khash.h" />
     <ClInclude Include="..\..\src\kmhash.h" />
     <ClInclude Include="..\..\src\kseq.h" />
+    <ClInclude Include="..\..\src\library_type.h" />
     <ClInclude Include="..\..\src\opt.h" />
     <ClInclude Include="..\..\src\pthread_barrier.h" />
     <ClInclude Include="..\..\src\radix_sort.h" />
@@ -207,8 +209,10 @@
     <ClCompile Include="..\..\src\get_buffer.c" />
     <ClCompile Include="..\..\src\hash_table.c" />
     <ClCompile Include="..\..\src\index.c" />
+    <ClCompile Include="..\..\src\interval_tree.c" />
     <ClCompile Include="..\..\src\io_utils.c" />
     <ClCompile Include="..\..\src\kmhash.c" />
+    <ClCompile Include="..\..\src\library_type.c" />
     <ClCompile Include="..\..\src\main.c" />
     <ClCompile Include="..\..\src\opt.c" />
     <ClCompile Include="..\..\src\pthread_barrier.c" />

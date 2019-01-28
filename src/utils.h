@@ -29,6 +29,7 @@
 #include <BaseTsd.h>
 #include <tchar.h>
 #include <wchar.h>
+#include <malloc.h>
 #else
 #include <unistd.h>
 #include <sys/resource.h>

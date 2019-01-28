@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "attribute.h"
+#include "utils.h"
 
 #ifdef HERA_64_BIT
 #define OCC_INTV_SHIFT		7
@@ -65,7 +66,20 @@ struct bwt_t {
 	bioint_t *sa;
 };
 
+#ifdef _WIN32
+struct bwt_t *bwt_build_from_fasta(const TCHAR *path);
+
+void bwt_dump(const TCHAR *path, struct bwt_t *bwt);
+
+void bwt_load(const TCHAR *path, struct bwt_t *bwt);
+#else
 struct bwt_t *bwt_build_from_fasta(const char *path);
+
+void bwt_dump(const char *path, struct bwt_t *bwt);
+
+void bwt_load(const char *path, struct bwt_t *bwt);
+
+#endif
 
 bioint_t bwt_match_exact(struct bwt_t *bwt, const char *str, int len, bioint_t *sa_beg, bioint_t *sa_end);
 
@@ -73,9 +87,6 @@ void bwt_2occ(struct bwt_t *bwt, bioint_t l, bioint_t r, uint8_t c, bioint_t *o_
 
 bioint_t bwt_sa(struct bwt_t *bwt, bioint_t k);
 
-void bwt_dump(const char *path, struct bwt_t *bwt);
-
-void bwt_load(const char *path, struct bwt_t *bwt);
 
 void bwt_destroy(struct bwt_t *p);
 

@@ -231,7 +231,7 @@ void print_barcodes(const TCHAR *out_dir)
 	int i;
 
 	_tcscpy(out_path, out_dir);
-	_tcscat(out_path, "/barcodes.tsv");
+	_tcscat(out_path, _T("/barcodes.tsv"));
 
 	fp = xfopen(out_path, "w");
 
@@ -251,7 +251,7 @@ void print_genes(const TCHAR *out_dir)
 	int i;
 
 	_tcscpy(out_path, out_dir);
-	_tcscat(out_path, "/genes.tsv");
+	_tcscat(out_path, _T("/genes.tsv"));
 
 	fp = xfopen(out_path, "w");
 
@@ -267,7 +267,7 @@ void write_mtx(const TCHAR *bin_path, const TCHAR *out_dir)
 	TCHAR out_path[MAX_PATH];
 	FILE *fbin, *fmtx;
 	_tcscpy(out_path, out_dir);
-	_tcscat(out_path, "/matrix.mtx");
+	_tcscat(out_path, _T("/matrix.mtx"));
 	fbin = xfopen(bin_path, "rb");
 	fmtx = xfopen(out_path, "wb");
 	int m, n, r, c, cnt;
@@ -286,7 +286,7 @@ void write_mtx(const TCHAR *bin_path, const TCHAR *out_dir)
 		fprintf(fmtx, "%d\t%d\t%d\n", r, c, cnt);
 	}
 	fclose(fbin);
-	xwfclose(fmtx);
+	xfclose(fmtx);
 }
 #else
 void print_barcodes(const char *out_dir)
@@ -352,7 +352,7 @@ void write_mtx(const char *bin_path, const char *out_dir)
 		fprintf(fmtx, "%d\t%d\t%d\n", r, c, cnt);
 	}
 	fclose(fbin);
-	xwfclose(fmtx);
+	xfclose(fmtx);
 }
 #endif
 
@@ -467,10 +467,12 @@ void quantification(struct opt_count_t *opt, struct kmhash_t *h)
 	print_barcodes(opt->out_dir);
 	print_genes(opt->out_dir);
 
+	__DEBUG("lul1\n");
 	TCHAR out_path[MAX_PATH];
 	_tcscpy(out_path, opt->out_dir);
-	_tcscat(out_path, "/matrix.bin");
+	_tcscat(out_path, _T("/matrix.bin"));
 
+	__DEBUG("lul2\n");
 	FILE *fbin;
 	fbin = xfopen(out_path, "wb");
 
@@ -510,7 +512,7 @@ void quantification(struct opt_count_t *opt, struct kmhash_t *h)
 
 	fseek(fbin, 8L, SEEK_SET);
 	xfwrite(&n_lines, sizeof(uint64_t), 1, fbin);
-	xwfclose(fbin);
+	xfclose(fbin);
 
 	write_mtx(out_path, opt->out_dir);
 
@@ -571,7 +573,7 @@ void quantification(struct opt_count_t *opt, struct kmhash_t *h)
 
 	fseek(fbin, 8L, SEEK_SET);
 	xfwrite(&n_lines, sizeof(uint64_t), 1, fbin);
-	xwfclose(fbin);
+	xfclose(fbin);
 
 	write_mtx(out_path, opt->out_dir);
 

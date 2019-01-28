@@ -7,13 +7,13 @@
 #include <stdio.h>
 
 #ifdef _WIN32
-int main(int argc, TCHAR *argv[])
+int _tmain(int argc, TCHAR *argv[])
 {
-	if (argc == 1) {
+ 	if (argc == 1) {
 		print_usage();
-	} else if (!_tcscmp(argv[1], "index")) {
+	} else if (!_tcscmp(argv[1], _T("index"))) {
 		build_index(2, argc, argv);
-	} else if (!_tcscmp(argv[1], "count")) {
+	} else if (!_tcscmp(argv[1], _T("count"))) {
 		single_cell(2, argc, argv);
 		// quant(2, argc, argv);
 	} else {

@@ -175,7 +175,7 @@ void store_cons_hash(const char *file_path, int kcons)
 	xfwrite(&(bcons->npos), sizeof(int), 1, fi);
 	xfwrite(bcons->pos, sizeof(int), bcons->npos, fi);
 
-	xwfclose(fi);
+	xfclose(fi);
 	free(id);
 	free(head);
 }
@@ -205,7 +205,7 @@ void load_cons_hash(const char *file_path, int *kcons)
 	hcons->pos = malloc(hcons->head[hcons->bpos[size]] * sizeof(int));
 	xfread(hcons->pos, sizeof(int), hcons->head[hcons->bpos[size]], fi);
 
-	xwfclose(fi);
+	xfclose(fi);
 }
 
 void free_cons_hash_index()

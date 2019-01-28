@@ -6,7 +6,7 @@
 
 #if defined(_MSC_VER)
 #define __OPT_ERROR(fmt, ...) do {					       \
-	fprintf(stderr, "ERROR PARSING OPTIONS: " fmt "\n", __VA_ARGS__);	       \
+	_ftprintf(stderr, "ERROR PARSING OPTIONS: " fmt "\n", __VA_ARGS__);	       \
 	exit(EXIT_FAILURE);						       \
 } while(0)
 #else 
@@ -60,9 +60,15 @@ static struct opt_count_t *init_opt_count()
 {
 	struct opt_count_t *opt;
 	opt = calloc(1, sizeof(struct opt_count_t));
+#ifdef _WIN32
+	opt->out_dir = _T(".");
+	opt->temp_dir = _T(".");
+	opt->prefix = _T("HeraT");
+#else
 	opt->out_dir = ".";
 	opt->temp_dir = ".";
 	opt->prefix = "HeraT";
+#endif
 	opt->n_threads = 1;
 	opt->lib = get_library(0);
 	opt->n_threads = 1;
@@ -119,32 +125,68 @@ static void check_valid_opt_count(struct opt_count_t *opt)
 		__OPT_ERROR("Missing second segment of read files");
 }
 
+#ifdef _WIN32
+static void opt_check_num(int argc, TCHAR **argv)
+#else
 static void opt_check_num(int argc, char **argv)
+#endif
 {
+#ifdef _WIN32
+	if (argc < 2 || argv[1][0] == _T('-'))
+		__OPT_ERROR("Missing data for option %ls", argv[0]);
+
+#else
 	if (argc < 2 || argv[1][0] == '-')
 		__OPT_ERROR("Missing data for option %s", argv[0]);
+#endif
 
 	int i;
 	for (i = 0; argv[1][i]; ++i)
+#ifdef _WIN32
+		if (argv[1][i] < _T('0') || argv[1][i] > _T('9'))
+			__OPT_ERROR("Invalid data for option %ls: %ls", argv[0], argv[1]);
+
+#else
 		if (argv[1][i] < '0' || argv[1][i] > '9')
 			__OPT_ERROR("Invalid data for option %s: %s", argv[0], argv[1]);
+#endif
 }
 
+#ifdef _WIN32
+static void opt_check_str(int argc, TCHAR **argv)
+#else
 static void opt_check_str(int argc, char **argv)
+#endif
 {
+#ifdef _WIN32
+	if (argc < 2 || argv[1][0] == _T('-'))
+#else
 	if (argc < 2 || argv[1][0] == '-')
+#endif
 		__OPT_ERROR("Missing data for option %s", argv[0]);
 }
 
+#ifdef _WIN32
+static int opt_count_list(int argc, TCHAR **argv)
+#else
 static int opt_count_list(int argc, char **argv)
+#endif
 {
 	int n;
 	for (n = 0; n < argc - 1; ++n) {
-		if (argv[n + 1][0] == '-')
+#ifdef _WIN32
+		if (argv[n + 1][0] == _T('-'))
 			break;
 	}
 	if (n == 0)
+		__OPT_ERROR("Missing data for option %ls", argv[0]);
+#else
+		if (argv[n + 1][0] == ('-'))
+			break;
+}
+	if (n == 0)
 		__OPT_ERROR("Missing data for option %s", argv[0]);
+#endif
 	return n;
 }
 
@@ -192,11 +234,11 @@ struct opt_index_t *get_opt_index(int argc, TCHAR *argv[])
 	check_valid_opt_index(opt);
 	int i;
 	for (i = 0; opt->prefix[i]; ++i) {
-		if ((opt->prefix[i] < 'A' || opt->prefix[i] > 'Z') &&
-		    (opt->prefix[i] < 'a' || opt->prefix[i] > 'z') &&
-		    (opt->prefix[i] < '0' || opt->prefix[i] > '9') &&
-		    !strchr("_-.", opt->prefix[i]))
-			__OPT_ERROR("Invalid prefix string %s (included character '%c')", opt->prefix, opt->prefix[i]);
+		if ((opt->prefix[i] < _T('A') || opt->prefix[i] > ('Z')) &&
+		    (opt->prefix[i] < _T('a') || opt->prefix[i] > _T('z')) &&
+		    (opt->prefix[i] < _T('0') || opt->prefix[i] > _T('9')) &&
+		    !_tcschr(_T("_-."), opt->prefix[i]))
+			__OPT_ERROR("Invalid prefix string %ls (included character '%lc')", opt->prefix, opt->prefix[i]);
 	}
 
 	// normalize_dir(opt->idx_dir);
@@ -260,6 +302,93 @@ struct opt_index_t *get_opt_index(int argc, char *argv[])
 }
 #endif
 
+#ifdef _WIN32
+struct opt_count_t *get_opt_count(int argc, TCHAR *argv[])
+{
+	if (argc == 0) {
+		print_count_usage();
+		exit(EXIT_FAILURE);
+	}
+
+	struct opt_count_t *opt;
+	opt = init_opt_count();
+	int pos = 0, n;
+	while (pos < argc) {
+		if (!_tcscmp(argv[pos], _T("-x"))) {
+			opt_check_str(argc - pos, argv + pos);
+			opt->index = argv[pos + 1];
+			pos += 2;
+		}
+		else if (!_tcscmp(argv[pos], _T("-o"))) {
+			opt_check_str(argc - pos, argv + pos);
+			opt->out_dir = argv[pos + 1];
+			pos += 2;
+		}
+		else if (!_tcscmp(argv[pos], _T("--temp-dir"))) {
+			opt_check_str(argc - pos, argv + pos);
+			opt->temp_dir = argv[pos + 1];
+			pos += 2;
+		}
+		else if (!_tcscmp(argv[pos], _T("-t"))) {
+			opt_check_num(argc - pos, argv + pos);
+			opt->n_threads = atoi(argv[pos + 1]);
+			pos += 2;
+		}
+		else if (!_tcscmp(argv[pos], _T("-p"))) {
+			opt_check_str(argc - pos, argv + pos);
+			opt->prefix = argv[pos + 1];
+			pos += 2;
+		}
+		else if (!_tcscmp(argv[pos], _T("-1"))) {
+			n = opt_count_list(argc - pos, argv + pos);
+			if (opt->n_files > 0 && opt->n_files != n)
+				__OPT_ERROR("Number of files in pair are not equal");
+			opt->n_files = n;
+			opt->left_file = argv + pos + 1;
+			pos += (n + 1);
+		}
+		else if (!_tcscmp(argv[pos], _T("-2"))) {
+			n = opt_count_list(argc - pos, argv + pos);
+			if (opt->n_files > 0 && opt->n_files != n)
+				__OPT_ERROR("Number of files in pair are not equal");
+			opt->n_files = n;
+			opt->right_file = argv + pos + 1;
+			pos += (n + 1);
+		}
+		else if (!_tcscmp(argv[pos], _T("-l"))) {
+			opt_check_num(argc - pos, argv + pos);
+			int type = atoi(argv[pos + 1]);
+			if (!check_valid_library(type))
+				__OPT_ERROR("Invalid library type");
+			opt->lib = get_library(type);
+			pos += 2;
+		}
+		else if (!_tcscmp(argv[pos], _T("--dump-align"))) {
+			opt->is_dump_align = 1;
+			++pos;
+		}
+		else if (!_tcscmp(argv[pos], _T("--count-intron"))) {
+			opt->count_intron = 1;
+			++pos;
+		}
+		else {
+			__OPT_ERROR("Invalid option %s", argv[pos]);
+		}
+	}
+	check_valid_opt_count(opt);
+	int i;
+	for (i = 0; opt->prefix[i]; ++i) {
+		if ((opt->prefix[i] < _T('A') || opt->prefix[i] > _T('Z')) &&
+			(opt->prefix[i] < _T('a') || opt->prefix[i] > _T('z')) &&
+			(opt->prefix[i] < _T('0') || opt->prefix[i] > _T('9')) &&
+			!_tcschr(_T("_-."), opt->prefix[i]))
+			__OPT_ERROR("Invalid prefix string %ls (included character '%lc')", opt->prefix, opt->prefix[i]);
+	}
+	// normalize_dir(opt->out_dir);
+	make_dir(opt->out_dir);
+	return opt;
+}
+#else
 struct opt_count_t *get_opt_count(int argc, char *argv[])
 {
 	if (argc == 0) {
@@ -335,3 +464,4 @@ struct opt_count_t *get_opt_count(int argc, char *argv[])
 	make_dir(opt->out_dir);
 	return opt;
 }
+#endif

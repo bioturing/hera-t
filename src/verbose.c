@@ -7,10 +7,14 @@
 
 static FILE *log_file = NULL;
 
+#ifdef _WIN32
+void init_log(const TCHAR *path)
+#else
 void init_log(const char *path)
+#endif
 {
 	if (!log_file) {
-		log_file = fopen(path, "wb");
+		log_file = xfopen(path, "wb");
 		if (!log_file)
 			__VERBOSE_INFO("WARNING", "Unable to open log file."
 					" No log will be written\n");

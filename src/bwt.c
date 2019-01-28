@@ -212,11 +212,19 @@ uint8_t *add_seq(kseq_t *seq, uint8_t *pac, bioint_t *l_pac, uint64_t *m_pac)
 	return pac;
 }
 
+#ifdef _WIN32
+struct bwt_t *bwt_build_from_fasta(const TCHAR *path)
+#else
 struct bwt_t *bwt_build_from_fasta(const char *path)
+#endif
 {
 	struct bwt_t *bwt;
 	bwt = calloc(1, sizeof(struct bwt_t));
+#ifdef _WIN32
+	gzFile fp = gzopen_w(path, "r");
+#else
 	gzFile fp = gzopen(path, "r");
+#endif
 	kseq_t *seq;
 	uint64_t m_pac;
 	seq = kseq_init(fp);
@@ -246,7 +254,11 @@ struct bwt_t *bwt_build_from_fasta(const char *path)
 	return bwt;
 }
 
+#ifdef _WIN32
+void bwt_dump(const TCHAR *path, struct bwt_t *bwt)
+#else
 void bwt_dump(const char *path, struct bwt_t *bwt)
+#endif
 {
 	FILE *fp;
 	fp = xfopen(path, "wb");
@@ -263,10 +275,14 @@ void bwt_dump(const char *path, struct bwt_t *bwt)
 	// SA
 	xfwrite(&bwt->n_sa, sizeof(bioint_t), 1, fp);
 	xfwrite(bwt->sa, sizeof(bioint_t), bwt->n_sa, fp);
-	xwfclose(fp);
+	xfclose(fp);
 }
 
+#ifdef _WIN32
+void bwt_load(const TCHAR *path, struct bwt_t *bwt)
+#else
 void bwt_load(const char *path, struct bwt_t *bwt)
+#endif
 {
 	FILE *fp;
 	fp = xfopen(path, "rb");
@@ -296,7 +312,7 @@ void bwt_load(const char *path, struct bwt_t *bwt)
 	xfread(bwt->sa, sizeof(bioint_t), bwt->n_sa, fp);
 	// TODO: check for integrity
 	//__VERBOSE("[DEBUG] Done reading bwt\n");
-	fclose(fp);
+	xfclose(fp);
 }
 
 void bwt_destroy(struct bwt_t *p)

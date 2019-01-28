@@ -16,5 +16,5 @@ cmake -G "Visual Studio 14 2015 Win64" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTAL
 cmake --build . --target install --config Release
 cd ../..
 
-msbuild.exe Hera0.1.1/Hera0.1.1.sln "-p:Configuration=Release;Platform=x64"
+msbuild.exe Hera0.1.1/Hera0.1.1.sln "-p:Configuration=Debug;Platform=x64"
 

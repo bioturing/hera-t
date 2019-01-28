@@ -4,6 +4,32 @@
 #include "utils.h"
 #include "verbose.h"
 
+#ifdef _WIN32
+static int get_format(TCHAR *file_path)
+{
+	char buf[1024];
+	gzFile file;
+	int n, ret;
+
+	file = gzopen_w(file_path, "r");
+	if (!file)
+		__ERROR(_T("Could not open file: %ls"), file_path);
+
+	n = gzread(file, buf, 1);
+	if (!n)
+		__ERROR(_T("Could not read file: %ls"), file_path);
+
+	if (buf[0] == _T('@'))
+		ret = TYPE_FASTQ;
+	else if (buf[0] == '>')
+		ret = TYPE_FASTA;
+	else
+		__ERROR(_T("Unsupport format of file: %s"), file_path);
+
+	gzclose(file);
+	return ret;
+}
+#else
 static int get_format(char *file_path)
 {
 	char buf[1024];
@@ -28,7 +54,34 @@ static int get_format(char *file_path)
 	gzclose(file);
 	return ret;
 }
+#endif
 
+
+#ifdef _WIN32
+void gb_pair_init(struct gb_pair_data *data, TCHAR *file_path1, TCHAR *file_path2)
+{
+	if (!_tcscmp(file_path1, file_path2))
+		__ERROR("Two identical read files");
+
+	data->type = get_format(file_path1);
+	if (get_format(file_path2) != data->type)
+		__ERROR("Format in two read files are not equal");
+	data->offset = 0;
+
+	data->file1.name = file_path1;
+	data->file2.name = file_path2;
+	data->file1.fi = gzopen_w(file_path1, "r");
+	data->file2.fi = gzopen_w(file_path2, "r");
+	data->file1.buf = malloc(SIZE_1MB + 1);
+	data->file2.buf = malloc(SIZE_1MB + 1);
+	data->file1.size = data->file2.size = 0;
+	data->file1.is_eof = data->file2.is_eof = 0;
+	data->finish_flag = 0;
+	data->warning_flag = 0;
+	data->file1.processed = 0;
+	data->file2.processed = 0;
+}
+#else
 void gb_pair_init(struct gb_pair_data *data, char *file_path1, char *file_path2)
 {
 	if (!strcmp(file_path1, file_path2))
@@ -52,6 +105,7 @@ void gb_pair_init(struct gb_pair_data *data, char *file_path1, char *file_path2)
 	data->file1.processed = 0;
 	data->file2.processed = 0;
 }
+#endif
 
 void gb_pair_destroy(struct gb_pair_data *data)
 {

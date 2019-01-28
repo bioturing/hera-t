@@ -25,7 +25,11 @@ static struct bwt_t bwt;
 
 void free_align_data();
 
+#ifdef _WIN32
+void load_index(const TCHAR *prefix, int32_t count_intron);
+#else
 void load_index(const char *prefix, int32_t count_intron);
+#endif
 
 void single_cell_process(struct opt_count_t *opt);
 
@@ -54,6 +58,33 @@ void debug_index()
 	exit(0);
 }
 
+#ifdef _WIN32
+void single_cell(int pos, int argc, TCHAR *argv[])
+{
+	struct opt_count_t *opt = get_opt_count(argc - pos, argv + pos);
+	TCHAR prefix[1024];
+	TCHAR tmp_dir[1024];
+	_tcscpy(prefix, opt->out_dir); _tcscat(prefix, _T("/"));
+	_tcscat(prefix, opt->prefix);
+
+	_tcscpy(tmp_dir, prefix); _tcscat(tmp_dir, _T(".log"));
+	init_log(tmp_dir);
+
+	log_write(_T("VERSION: %d.%d\n"), PROG_VERSION_MAJOR, PROG_VERSION_MINOR);
+	log_write(_T("COMMAND: "));
+	int i;
+	for (i = 0; i < argc; ++i)
+		log_write(_T("%ls "), argv[i]);
+	log_write(_T("\n"));
+
+	load_index(opt->index, opt->count_intron);
+
+	extern struct gene_info_t genes;
+	init_barcode(&genes, opt->lib);
+
+	single_cell_process(opt);
+}
+#else
 void single_cell(int pos, int argc, char *argv[])
 {
 	struct opt_count_t *opt = get_opt_count(argc - pos, argv + pos);
@@ -79,6 +110,8 @@ void single_cell(int pos, int argc, char *argv[])
 
 	single_cell_process(opt);
 }
+#endif
+
 
 void check_some_statistics(struct kmhash_t *h)
 {
@@ -90,7 +123,7 @@ void check_some_statistics(struct kmhash_t *h)
 		if (h->bucks[i].idx != TOMB_STONE)
 			s += h->bucks[i].umis->n_items;
 	}
-	__VERBOSE("Total number of UMI                   : %lu\n", s);
+	__VERBOSE("Total number of UMI                   : %llu\n", s);
 	__VERBOSE("Mean UMI per barcode                  : %.6f\n", s * 1.0 / h->n_items);
 }
 
@@ -146,8 +179,14 @@ void single_cell_process(struct opt_count_t *opt)
 	char path[1024];
 
 	struct shared_fstream_t *align_fstream;
+#ifdef _WIN32
+	_tcscpy(path, opt->out_dir); _tcscat(path, _T("/"));
+	_tcscpy(path, opt->prefix); _tcscat(path, _T(".align.tsv"));
+#else
 	strcpy(path, opt->out_dir); strcat(path, "/");
 	strcat(path, opt->prefix); strcat(path, ".align.tsv");
+#endif
+
 	if (opt->is_dump_align)
 		align_fstream = init_shared_stream(path, opt->n_threads);
 	else
@@ -305,13 +344,77 @@ void update_result(struct align_stat_t *res, struct align_stat_t *add)
 	__VERBOSE("\rNumber of processed reads: %d", res->nread);
 }
 
+#ifdef _WIN32
+void init_bwt(const TCHAR *path, int32_t count_intron)
+{
+	extern struct bwt_t bwt;
+	bwt_load(path, &bwt);
+	genome_init_bwt(&bwt, count_intron);
+}
+#else
 void init_bwt(const char *path, int32_t count_intron)
 {
 	extern struct bwt_t bwt;
 	bwt_load(path, &bwt);
 	genome_init_bwt(&bwt, count_intron);
 }
+#endif
 
+#ifdef _WIN32
+void init_ref_info(const TCHAR *path)
+{
+	extern struct genome_info_t genome;
+	extern struct gene_info_t genes;
+	extern struct transcript_info_t trans;
+
+	FILE *fp = xfopen(path, "rb");
+	xfread(&genome.n, sizeof(int), 1, fp);
+	xfread(&genome.l_name, sizeof(int), 1, fp);
+	genome.chr_len = malloc(genome.n * sizeof(bioint_t));
+	genome.chr_name = malloc(genome.n * genome.l_name);
+	xfread(genome.chr_len, sizeof(bioint_t), genome.n, fp);
+	xfread(genome.chr_name, genome.l_name, genome.n, fp);
+
+	xfread(&genes.n, sizeof(int), 1, fp);
+	xfread(&genes.l_name, sizeof(int), 1, fp);
+	xfread(&genes.l_id, sizeof(int), 1, fp);
+	genes.chr_idx = malloc(genes.n * sizeof(int));
+	genes.gene_name = malloc(genes.n * genes.l_name);
+	genes.gene_id = malloc(genes.n * genes.l_id);
+	genes.strand = malloc(genes.n);
+	xfread(genes.chr_idx, sizeof(int), genes.n, fp);
+	xfread(genes.gene_name, genes.l_name, genes.n, fp);
+	xfread(genes.gene_id, genes.l_id, genes.n, fp);
+	xfread(genes.strand, 1, genes.n, fp);
+
+	xfread(&trans.n, sizeof(int), 1, fp);
+	xfread(&trans.l_id, sizeof(int), 1, fp);
+	trans.tran_id = malloc(trans.n * trans.l_id);
+	trans.tran_len = malloc(trans.n * sizeof(int));
+	trans.tran_beg = malloc((trans.n + 1) * sizeof(int));
+	trans.gene_idx = malloc(trans.n * sizeof(int));
+	xfread(trans.tran_id, trans.l_id, trans.n, fp);
+	xfread(trans.tran_len, sizeof(int), trans.n, fp);
+	xfread(trans.tran_beg, sizeof(int), trans.n + 1, fp);
+	xfread(trans.gene_idx, sizeof(int), trans.n, fp);
+	trans.idx = malloc(trans.tran_beg[trans.n] * sizeof(int));
+	trans.seq = malloc(trans.tran_beg[trans.n]);
+	xfread(trans.idx, sizeof(int), trans.tran_beg[trans.n], fp);
+	xfread(trans.seq, 1, trans.tran_beg[trans.n], fp);
+
+	trans.n_exon = malloc(trans.n * sizeof(int));
+	xfread(trans.n_exon, sizeof(int), trans.n, fp);
+	trans.exons = malloc(trans.n * sizeof(struct exon_t *));
+	int i;
+	for (i = 0; i < trans.n; ++i) {
+		trans.exons[i] = malloc(trans.n_exon[i] * sizeof(struct exon_t));
+		xfread(trans.exons[i], sizeof(struct exon_t), trans.n_exon[i], fp);
+	}
+	xfclose(fp);
+
+	alignment_init_ref_info(&genes, &trans);
+}
+#else
 void init_ref_info(const char *path)
 {
 	extern struct genome_info_t genome;
@@ -365,11 +468,41 @@ void init_ref_info(const char *path)
 
 	alignment_init_ref_info(&genes, &trans);
 }
+#endif
 
+
+#ifdef _WIN32
+void load_index(const TCHAR *prefix, int32_t count_intron)
+{
+	TCHAR tmp_dir[1024];
+	wmemset(tmp_dir, 0, 1024);
+	_tcscpy(tmp_dir, prefix); _tcscat(tmp_dir, _T(".bwt"));
+	__VERBOSE("Loading BWT...\n");
+	init_bwt(tmp_dir, count_intron);
+
+	wmemset(tmp_dir, 0, 1024);
+	_tcscpy(tmp_dir, prefix); _tcscat(tmp_dir, _T(".info"));
+	__VERBOSE("Loading transcripts and genes info...\n");
+	init_ref_info(tmp_dir);
+
+	wmemset(tmp_dir, 0, 1024);
+	_tcscpy(tmp_dir, prefix); _tcscat(tmp_dir, _T(".hash"));
+	__VERBOSE("Loading kmer hash table...\n");
+	alignment_init_hash(tmp_dir);
+
+	/*
+
+	strcpy(tmp_dir, prefix); strcat(tmp_dir, ".tree");
+	__VERBOSE("Loading gene interval...\n");
+	load_interval_tree(tmp_dir, genes.strand);
+
+	*/
+}
+#else
 void load_index(const char *prefix, int32_t count_intron)
 {
 	char tmp_dir[1024];
-	strcpy(tmp_dir, prefix); strcat(tmp_dir, ".bwt"); 
+	strcpy(tmp_dir, prefix); strcat(tmp_dir, ".bwt");
 	__VERBOSE("Loading BWT...\n");
 	init_bwt(tmp_dir, count_intron);
 
@@ -389,6 +522,7 @@ void load_index(const char *prefix, int32_t count_intron)
 
 	*/
 }
+#endif
 
 void free_align_data()
 {

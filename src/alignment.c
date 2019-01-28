@@ -3,6 +3,9 @@
 #include <string.h>
 #include <assert.h>
 #include <pthread.h>
+#ifdef _WIN32
+#include <malloc.h>
+#endif
 
 #include "alignment.h"
 #include "dynamic_alignment.h"
@@ -38,6 +41,15 @@ void alignment_init_ref_info(struct gene_info_t *g, struct transcript_info_t *t)
 	memcpy(&trans, t, sizeof(struct transcript_info_t));
 }
 
+#ifdef _WIN32
+void alignment_init_hash(const TCHAR *path)
+{
+	extern int kcons;
+	extern uint64_t kcons_mask;
+	load_cons_hash(path, &kcons);
+	kcons_mask = (1ull << (kcons << 1)) - 1;
+}
+#else
 void alignment_init_hash(const char *path)
 {
 	extern int kcons;
@@ -45,6 +57,8 @@ void alignment_init_hash(const char *path)
 	load_cons_hash(path, &kcons);
 	kcons_mask = (1ull << (kcons << 1)) - 1;
 }
+#endif
+
 
 static inline uint64_t get_index_cons(const char *seq)
 {

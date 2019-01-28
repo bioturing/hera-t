@@ -21,7 +21,7 @@
 #ifdef _WIN32
 int windows_path_convert(TCHAR *path) {
 	if (*path == NULL) {
-		__PERROR("windows path convert failed\n");
+		fprintf(stderr, "errororrororor");
 		return 1;
 	}
 	size_t plen = _tcslen(path);
@@ -182,7 +182,7 @@ size_t _fetch_size(char **file_path, int n_file)
 	int i;
 	for (i = 0; i < n_file; ++i) {
 #ifdef _WIN32
-		fid = xfopen(file_path[i], L"rb");
+		fid = xfopen(file_path[i], "rb");
 #else
 		fid = xfopen(file_path[i], "rb");
 #endif
@@ -235,7 +235,7 @@ void destroy_shared_stream(struct shared_fstream_t *p, int n)
 	}
 	pthread_mutex_destroy(p->lock);
 	free(p->lock);
-	xwfclose(p->fp);
+	xfclose(p->fp);
 	free(p);
 }
 
