@@ -7,6 +7,7 @@
 
 int main(int argc, char *argv[])
 {
+	print_info();
 	if (argc == 1) {
 		print_usage();
 	} else if (!strcmp(argv[1], "index")) {

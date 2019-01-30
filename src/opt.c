@@ -1,5 +1,6 @@
 #include "attribute.h"
 #include "io_utils.h"
+#include "library_type.h"
 #include "opt.h"
 #include "utils.h"
 #include "verbose.h"
@@ -16,35 +17,45 @@
 } while(0)
 #endif
 
-void print_usage()
+void print_info()
 {
+	__VERBOSE("Hera-T is a program developed by BioTuring for ScRNA-Seq analysis\n");
+	__VERBOSE("Please contact info@bioturing.com if you need further support\n");
+	__VERBOSE("This is an academic version, which is free for academic labs\n");
+	__VERBOSE("No IP or commercial work can be derived from using this free academic version\n");
+	__VERBOSE("If you are using Hera-T for IP or commercial related work, please contact info@bioturing.com to obtain a license\n");
+	__VERBOSE("Cite Hera-T paper at: https://doi.org/10.1101/530501\n");
 	__VERBOSE("Version: %d.%d.%d\n", PROG_VERSION_MAJOR, PROG_VERSION_MINOR, PROG_VERSION_FIX);
 	__VERBOSE("\n");
-	__VERBOSE("Usage: ./HeraT <CMD> [options] ...\n");
+}
+
+void print_usage()
+{
+	// print_info();
+	__VERBOSE("Usage: ./hera-T <CMD> [options] ...\n");
 	__VERBOSE("\n");
 	__VERBOSE("Where <CMD> can be one of:\n");
-	__VERBOSE("    index            build a HeraT index\n");
-	__VERBOSE("    count            generate gene count matrix\n");
+	__VERBOSE("    index            to build Hera-T index\n");
+	__VERBOSE("    count            to calculate gene count matrix\n");
 	__VERBOSE("\n");
 }
 
 void print_index_usage()
 {
-	__VERBOSE("Version: %d.%d.%d\n", PROG_VERSION_MAJOR, PROG_VERSION_MINOR, PROG_VERSION_FIX);
+	// print_info();
+	__VERBOSE("To build Hera-T index\n");
 	__VERBOSE("\n");
-	__VERBOSE("Build HeraT index\n");
-	__VERBOSE("\n");
-	__VERBOSE("Usage: ./HeraT index -g <path/to/genome_fasta> -t <path/to/gene_gtf> -p <index_prefix>\n");
+	__VERBOSE("Usage: ./hera-T index -g <path/to/genome_fasta> -t <path/to/gene_gtf> -p <index_prefix> -o <output_folder>\n");
+	__VERBOSE("Example: ./hera-T index -g Homo_sapiens.GRCh37.75.dna_sm.primary_assembly.fa -t Homo_sapiens.GRCh37.75.gtf -o index -p grch37\n");
 	__VERBOSE("\n");
 }
 
 void print_count_usage()
 {
-	__VERBOSE("Version: %d.%d.%d\n", PROG_VERSION_MAJOR, PROG_VERSION_MINOR, PROG_VERSION_FIX);
+	// print_info();
+	__VERBOSE("To calculate gene count table\n");
 	__VERBOSE("\n");
-	__VERBOSE("Generating gene count table\n");
-	__VERBOSE("\n");
-	__VERBOSE("Usage: ./HeraT count [options] -x <idx_name> -1 <R1> -2 <R2>\n");
+	__VERBOSE("Usage: ./hera-T count [options] -x <idx_name> -1 <R1> -2 <R2>\n");
 	__VERBOSE("Option:\n");
 	__VERBOSE("-t\t: Number of threads\n");
 	__VERBOSE("-o\t: Output directory name\n");
@@ -52,6 +63,7 @@ void print_count_usage()
 	__VERBOSE("-l\t: Library types\n");
 	__VERBOSE("\t\t%u: 10X-Chromium 3' (v2) protocol\n", CHROMIUM3_V2);
 	__VERBOSE("\t\t%u: 10X-Chromium 3' (v3) protocol\n", CHROMIUM3_V3);
+	__VERBOSE("Example: ./hera-T count -t 32 -o ./result -x index/grch37 -l 0 -1 lane_0.read_1.fq lane_1.read_1.fq -2 lane_0.read_2.fq lane_1.read_2.fq\n");
 	//__VERBOSE("--count-intron\t: Count both exonic and intronic reads\n");
 	__VERBOSE("\n");
 }

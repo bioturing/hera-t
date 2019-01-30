@@ -7,7 +7,7 @@ LIBS = -pthread -flto -lm local/lib/libz.a local/lib/libdivsufsort64.a
 
 CFLAGS = -Wfatal-errors -Wextra -Wall -fPIC -std=gnu99 -O2 -Ilocal/include/ -Isrc/ -g
 
-EXEC = HeraT
+EXEC = hera-T
 
 SRC = src/alignment.c 				\
       src/barcode.c 				\
@@ -18,7 +18,6 @@ SRC = src/alignment.c 				\
       src/get_buffer.c 				\
       src/hash_table.c 				\
       src/index.c 				\
-      src/interval_tree.c 			\
       src/io_utils.c 				\
       src/kmhash.c 				\
       src/opt.c 				\
