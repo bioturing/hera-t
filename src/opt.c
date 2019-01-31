@@ -19,11 +19,16 @@
 
 void print_info()
 {
+	/*         01234567890123456789012345678901234567890123456789012345678901234567890123456789 */
 	__VERBOSE("Hera-T is a program developed by BioTuring for ScRNA-Seq analysis\n");
 	__VERBOSE("Please contact info@bioturing.com if you need further support\n");
 	__VERBOSE("This is an academic version, which is free for academic labs\n");
 	__VERBOSE("No IP or commercial work can be derived from using this free academic version\n");
-	__VERBOSE("If you are using Hera-T for IP or commercial related work, please contact info@bioturing.com to obtain a license\n");
+	__VERBOSE("If you are using Hera-T for IP or commercial related work, please contact\ninfo@bioturing.com to obtain a license\n");
+	// __VERBOSE("This is an academic version, which is free for academic labs. No IP or\n");
+	// __VERBOSE("commercial work can be derived from using this free academic version. If you are\n");
+	// __VERBOSE("using Hera-T for IP or commercial related work, please contact\n");
+	// __VERBOSE("info@bioturing.com to obtain a license\n");
 	__VERBOSE("Cite Hera-T paper at: https://doi.org/10.1101/530501\n");
 	__VERBOSE("Version: %d.%d.%d\n", PROG_VERSION_MAJOR, PROG_VERSION_MINOR, PROG_VERSION_FIX);
 	__VERBOSE("\n");
