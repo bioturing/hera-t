@@ -184,6 +184,9 @@ void antibody_work(struct worker_data_t worker_data)
 
 	for (i = 0; i < opt->n_threads; ++i)
 		pthread_join(worker_threads[i], NULL);
+
+	__VERBOSE("\rNumber of processed reads: %d\n", result.nread);
+	__VERBOSE_LOG("INFO", "Total number of reads             : %10u\n", result.nread);
 }
 
 void process_read(struct kmhash_t *bc_table, struct opt_count_t *opt, 
@@ -264,8 +267,8 @@ void single_cell_process(struct opt_count_t *opt)
 
 	// mRna quantification
 	data.n_files = opt->n_files;
-	data.left_file = opt->right_file;
-	data.left_file = opt->right_file;
+	data.left_file = opt->left_file;
+	data.right_file = opt->right_file;
 	data.lib = NULL;
 	data.action = &rna_work;
 
@@ -277,16 +280,17 @@ void single_cell_process(struct opt_count_t *opt)
 	kmhash_destroy(bc_table);
 	
 	// Cell hashing
-	if (opt->cell_hashing == NULL && opt->protein_quant != NULL)
+	if (opt->cell_hashing == NULL && opt->protein_quant == NULL)
 		return;
 
 	bc_table = build_hash_from_cutoff(opt->n_threads);
 
 	if (opt->cell_hashing != NULL) {
+		__VERBOSE_LOG("INFO", "Map reads for cell hashing\n");
 		data.lib = opt->cell_hashing;
 		data.n_files = data.lib->n_files;
-		data.left_file = data.lib->right_file;
-		data.left_file = data.lib->right_file;
+		data.left_file = data.lib->left_file;
+		data.right_file = data.lib->right_file;
 		data.action = &antibody_work;
 
 		process_read(bc_table, opt, data);
@@ -294,10 +298,11 @@ void single_cell_process(struct opt_count_t *opt)
 	}
 
 	if (opt->protein_quant != NULL) {
+		__VERBOSE_LOG("INFO", "Map reads for protein measurement\n");
 		data.lib = opt->protein_quant;
 		data.n_files = data.lib->n_files;
-		data.left_file = data.lib->right_file;
-		data.left_file = data.lib->right_file;
+		data.left_file = data.lib->left_file;
+		data.right_file = data.lib->right_file;
 		data.action = &antibody_work;
 
 		process_read(bc_table, opt, data);

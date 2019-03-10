@@ -55,7 +55,7 @@ size_t xfwrite(void *ptr, size_t size, size_t nmemb, FILE *stream)
 	return ret;
 }
 
-ssize_t xgetline(char **str, size_t size, FILE *stream)
+ssize_t xgetline(char **str, size_t *size, FILE *stream)
 {
 	ssize_t ret = -1;
 #if defined(_MSC_VER)

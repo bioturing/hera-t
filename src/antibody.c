@@ -291,14 +291,12 @@ void print_ref(const char *out_dir, struct reference_t *ref)
 		start = i * ref->ref_len;
 		memcpy(id, ref->ref_id + start, len);
 		id[len] = '\0';
-		printf("%s\t", id);
 
 		start = ref->name_idx[i];
 		len = ref->name_idx[i + 1] - start;
 		char name[len + 1];
 		memcpy(name, ref->ref_name + start, len);
 		name[len] = '\0';
-		printf("%s\n", name);
 		fprintf(fp, "%s\t%s\n", id, name);
 	}
 

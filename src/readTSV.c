@@ -26,7 +26,8 @@ void destroy_readTSV(struct tsv_t *f)
 ssize_t get_row_content(struct tsv_t *f)
 {
         ssize_t ret;
-        ret = xgetline(&f->buf, BUF_SIZE, f->f);
+        int size = BUF_SIZE;
+        ret = xgetline(&f->buf, &size, f->f);
 
         if (ret == EOF)
                 return ret;
@@ -38,13 +39,14 @@ ssize_t get_row_content(struct tsv_t *f)
                 if (f->buf[i] != '\t')
                         continue;
                 f->l += 1;
-                if (f->l + 1 > f->m){
+                if (f->l >= f->m){
                         f->m <<= 1;
-                        f->row_content = realloc(f->row_content, f->m * sizeof(int));
+                        f->row_content = realloc(f->row_content, (f->m + 1) * sizeof(int));
                 }
                 f->row_content[f->l] = i + 1;
         }
-        f->row_content[f->l + 1] = ret + 1;
+        f->l += 1;
+        f->row_content[f->l] = ret + 1;
         return ret;
 }
 

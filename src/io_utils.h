@@ -35,7 +35,7 @@ size_t xfread(void *ptr, size_t size, size_t nmemb, FILE *stream);
 size_t xfwrite(void *ptr, size_t size, size_t nmemb, FILE *stream);
 
 /* auto remove /n character if found */
-ssize_t xgetline(char **str, size_t size, FILE *stream);
+ssize_t xgetline(char **str, size_t *size, FILE *stream);
 
 /* remove redundant / character */
 void normalize_dir(char *path);

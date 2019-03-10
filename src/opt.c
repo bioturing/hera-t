@@ -308,7 +308,7 @@ struct opt_count_t *get_opt_count(int argc, char *argv[])
 			protein_quant->n_files = n;
 			protein_quant->left_file = argv + pos + 1;
 			pos += (n + 1);
-		} else if (!strcmp(argv[pos], "--cell_r2")) {
+		} else if (!strcmp(argv[pos], "--protein_r2")) {
 			n = opt_count_list(argc - pos, argv + pos);
 			if (protein_quant->n_files > 0 && protein_quant->n_files != n)
 				__OPT_ERROR("Number of files (for protein measurement) are not equal in pair");
