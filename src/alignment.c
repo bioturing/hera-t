@@ -617,11 +617,10 @@ void store_read_chromium(struct read_t *r, struct raw_alg_t *alg,
 	}
 	if (gene == -1)
 		return;
+
 	bc_idx = umi_gene_idx = 0;
-	for (i = 0; i < lib.bc_len; ++i)
-		bc_idx = bc_idx * 5 + nt4_table[(int)r->seq[i]];
-	for (i = 0; i < lib.umi_len; ++i)
-		umi_gene_idx = umi_gene_idx * 5 + nt4_table[(int)r->seq[lib.bc_len + i]];
+	bc_idx = seq2num(r->seq, lib.bc_len);
+	umi_gene_idx = seq2num(r->seq + lib.bc_len, lib.umi_len);
 	umi_gene_idx = umi_gene_idx << GENE_BIT_LEN | gene;
 	kmhash_put_bc_umi(bc_table, bc_idx, umi_gene_idx);
 }

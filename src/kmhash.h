@@ -77,10 +77,14 @@ void kmhash_destroy(struct kmhash_t *h);
 
 void kmhash_put_bc_umi(struct kmhash_t *h, kmkey_t bc, kmkey_t umi);
 
+void kmhash_put_bc_only(struct kmhash_t *h, kmkey_t bc);
+
 void umihash_put_umi_single(struct umi_hash_t *h, kmkey_t key);
 
 kmint_t kmhash_get(struct kmhash_t *h, kmkey_t key);
 
 kmint_t umihash_get(struct umi_hash_t *h, kmkey_t key);
+
+void reinit_umi_hash(struct kmhash_t *h);
 
 #endif

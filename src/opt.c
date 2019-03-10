@@ -86,6 +86,8 @@ static struct opt_count_t *init_opt_count()
 	opt->is_dump_align = 0;
 	opt->count_intron = 0;
 	opt->left_file = opt->right_file = NULL;
+	opt->cell_hashing = opt->protein_quant = NULL;
+
 	return opt;
 }
 
@@ -224,7 +226,12 @@ struct opt_count_t *get_opt_count(int argc, char *argv[])
 	}
 
 	struct opt_count_t *opt;
+	struct antibody_lib_t *cell_hashing, *protein_quant;
+
 	opt = init_opt_count();
+	cell_hashing = init_antibody_lib(CELL_HASHING);
+	protein_quant = init_antibody_lib(PROTEIN_QUANT);
+
 	int pos = 0, n;
 	while (pos < argc) {
 		if (!strcmp(argv[pos], "-x")) {
@@ -268,6 +275,50 @@ struct opt_count_t *get_opt_count(int argc, char *argv[])
 				__OPT_ERROR("Invalid library type");
 			opt->lib = get_library(type);
 			pos += 2;
+		} else if (!strcmp(argv[pos], "--cell_tags")) {
+			opt_check_str(argc - pos, argv + pos);
+			cell_hashing->whitelist_path = argv[pos + 1];
+			pos += 2;
+		} else if (!strcmp(argv[pos], "--cell_r1")) {
+			n = opt_count_list(argc - pos, argv + pos);
+			if (cell_hashing->n_files > 0 && cell_hashing->n_files != n)
+				__OPT_ERROR("Number of files (for cell hashing) are not equal in pair");
+			cell_hashing->n_files = n;
+			cell_hashing->left_file = argv + pos + 1;
+			pos += (n + 1);
+		} else if (!strcmp(argv[pos], "--cell_r2")) {
+			n = opt_count_list(argc - pos, argv + pos);
+			if (cell_hashing->n_files > 0 && cell_hashing->n_files != n)
+				__OPT_ERROR("Number of files (for cell hashing) are not equal in pair");
+			cell_hashing->n_files = n;
+			cell_hashing->right_file = argv + pos + 1;
+			pos += (n + 1);
+		} else if (!strcmp(argv[pos], "--cell_trim")) {
+			opt_check_num(argc - pos, argv + pos);
+			cell_hashing->trim = atoi(argv[pos + 1]);
+			pos += 2;
+		} else if (!strcmp(argv[pos], "--protein_tags")) {
+			opt_check_str(argc - pos, argv + pos);
+			protein_quant->whitelist_path = argv[pos + 1];
+			pos += 2;
+		} else if (!strcmp(argv[pos], "--protein_r1")) {
+			n = opt_count_list(argc - pos, argv + pos);
+			if (protein_quant->n_files > 0 && protein_quant->n_files != n)
+				__OPT_ERROR("Number of files (for protein measurement) are not equal in pair");
+			protein_quant->n_files = n;
+			protein_quant->left_file = argv + pos + 1;
+			pos += (n + 1);
+		} else if (!strcmp(argv[pos], "--cell_r2")) {
+			n = opt_count_list(argc - pos, argv + pos);
+			if (protein_quant->n_files > 0 && protein_quant->n_files != n)
+				__OPT_ERROR("Number of files (for protein measurement) are not equal in pair");
+			protein_quant->n_files = n;
+			protein_quant->right_file = argv + pos + 1;
+			pos += (n + 1);
+		} else if (!strcmp(argv[pos], "--protein_trim")) {
+			opt_check_num(argc - pos, argv + pos);
+			protein_quant->trim = atoi(argv[pos + 1]);
+			pos += 2;
 		} else if (!strcmp(argv[pos], "--dump-align")) {
 			opt->is_dump_align = 1;
 			++pos;
@@ -278,7 +329,12 @@ struct opt_count_t *get_opt_count(int argc, char *argv[])
 			__OPT_ERROR("Invalid option %s", argv[pos]);
 		}
 	}
+
+	// Check valid input
 	check_valid_opt_count(opt);
+	opt->cell_hashing = check_valid_cell(cell_hashing);
+	opt->protein_quant = check_valid_protein(protein_quant);
+
 	int i;
 	for (i = 0; opt->prefix[i]; ++i) {
 		if ((opt->prefix[i] < 'A' || opt->prefix[i] > 'Z') &&

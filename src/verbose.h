@@ -35,6 +35,11 @@
 	exit(EXIT_FAILURE);						       \
 } while(0) /* ERROR */
 
+#define __WARNING(fmt, ...)do {						       \
+	fprintf(stderr, "[WARNING] " fmt "\n", __VA_ARGS__);		       \
+	log_write("[WARNING] " fmt "\n", __VA_ARGS__);			       \
+} while(0) /* WARNING */
+
 #else /* __MSC_VER */
 
 #define __VERBOSE_INFO(tag, fmt, args...) do {				       \
@@ -63,6 +68,12 @@
 	log_write("[ERROR] " fmt "\n", ##args);				       \
 	exit(EXIT_FAILURE);						       \
 } while(0) /* ERROR */
+
+
+#define __WARNING(fmt, args...) do {					       \
+	fprintf(stderr, "[WARNING] " fmt "\n", ##args);			       \
+	log_write("[WARNING] " fmt "\n", ##args);				       \
+} while(0) /* WARNING */
 #endif /* __MSC_VER */
 
 void init_log(const char *path);

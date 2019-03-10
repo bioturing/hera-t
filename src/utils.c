@@ -73,6 +73,15 @@ double realtime()
 	return tp.tv_sec + tp.tv_usec * 1e-6;
 }
 
+int check_valid_nu(const char *seq, int len)
+{
+	int i;
+	for (i = 0; i < len; ++i)
+		if (nt4_table[(int)seq[i]] >= NNU)
+			return 0;
+	return 1;
+}
+
 int64_t seq2num(const char *seq, int len)
 {
 	int64_t ret = 0;

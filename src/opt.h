@@ -2,6 +2,7 @@
 #define _OPT_H_
 
 #include "library_type.h"
+#include "antibody.h"
 
 struct opt_index_t {
 	char *genome;
@@ -26,6 +27,10 @@ struct opt_count_t {
 
 	// Library type
 	struct library_t lib;
+
+	// antibody
+	struct antibody_lib_t *cell_hashing;
+	struct antibody_lib_t *protein_quant;
 };
 
 void print_usage();

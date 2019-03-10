@@ -8,6 +8,7 @@
 #include "alignment.h"
 #include "attribute.h"
 #include "barcode.h"
+#include "antibody.h"
 #include "bwt.h"
 #include "genome.h"
 #include "get_buffer.h"
@@ -94,58 +95,19 @@ void check_some_statistics(struct kmhash_t *h)
 	__VERBOSE("Mean UMI per barcode                  : %.6f\n", s * 1.0 / h->n_items);
 }
 
-void single_cell_process(struct opt_count_t *opt)
+void rna_work(struct worker_data_t worker_data)
 {
-	pthread_attr_t attr;
-	pthread_attr_init(&attr);
-	pthread_attr_setstacksize(&attr, THREAD_STACK_SIZE);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-
-	struct align_stat_t result;
-	memset(&result, 0, sizeof(struct align_stat_t));
-
-	struct dqueue_t *q;
-	q = init_dqueue_PE(opt->n_threads * 2); // must always >= n_thread * 2 in order to avoid deadlock
-	int n_consumer;
-	n_consumer = opt->n_threads * 2;
-
-	struct producer_bundle_t *producer_bundles;
-	pthread_t *producer_threads;
-
-	producer_bundles = malloc(opt->n_files * sizeof(struct producer_bundle_t));
-	producer_threads = calloc(opt->n_files, sizeof(pthread_t));
-
-	pthread_mutex_t producer_lock;
-	pthread_barrier_t producer_barrier;
-
-	pthread_mutex_init(&producer_lock, NULL);
-	pthread_barrier_init(&producer_barrier, NULL, opt->n_files);
-
 	int i;
-	for (i = 0; i < opt->n_files; ++i) {
-		struct gb_pair_data *data = calloc(1, sizeof(struct gb_pair_data));
-		gb_pair_init(data, opt->left_file[i], opt->right_file[i]);
-
-		producer_bundles[i].n_consumer = &n_consumer;
-		producer_bundles[i].stream = (void *)data;
-		producer_bundles[i].q = q;
-		producer_bundles[i].barrier = &producer_barrier;
-		producer_bundles[i].lock = &producer_lock;
-		pthread_create(producer_threads + i, &attr, producer_worker, producer_bundles + i);
-	}
-
-	struct worker_bundle_t *worker_bundles;
-	pthread_t *worker_threads;
-
-	worker_bundles = malloc(opt->n_threads * sizeof(struct worker_bundle_t));
-	worker_threads = calloc(opt->n_threads, sizeof(pthread_t));
-
-	pthread_mutex_t lock_count;
-	pthread_mutex_init(&lock_count, NULL);
-
 	char path[1024];
-
 	struct shared_fstream_t *align_fstream;
+
+	struct opt_count_t *opt = worker_data.opt;
+	struct align_stat_t result = worker_data.result;
+	struct worker_bundle_t *worker_bundles = worker_data.worker_bundles;
+	pthread_t *producer_threads = worker_data.producer_threads;
+	pthread_t *worker_threads = worker_data.worker_threads;
+	pthread_attr_t *attr = worker_data.attr;
+
 	strcpy(path, opt->out_dir); strcat(path, "/");
 	strcat(path, opt->prefix); strcat(path, ".align.tsv");
 	if (opt->is_dump_align)
@@ -153,19 +115,22 @@ void single_cell_process(struct opt_count_t *opt)
 	else
 		align_fstream = NULL;
 
-	struct kmhash_t *bc_table = init_kmhash(KMHASH_KMHASH_SIZE - 1, opt->n_threads);
-
 	for (i = 0; i < opt->n_threads; ++i) {
-		worker_bundles[i].q = q;
-		worker_bundles[i].bc_table = bc_table;
-		worker_bundles[i].lock_count = &lock_count;
+		worker_bundles[i].q = worker_data.q;
+		worker_bundles[i].bc_table = worker_data.bc_table;
+		worker_bundles[i].lock_count = worker_data.lock_count;
 		worker_bundles[i].result = &result;
 		worker_bundles[i].lib = opt->lib;
 		if (opt->is_dump_align)
 			worker_bundles[i].align_fstream = align_fstream + i;
 		else
 			worker_bundles[i].align_fstream = NULL;
-		pthread_create(worker_threads + i, &attr, align_worker, worker_bundles + i);
+
+		worker_bundles[i].init_bundle = &init_bundle;
+		worker_bundles[i].destroy_bundle = &destroy_bundle;
+		worker_bundles[i].map_read = &align_chromium_read;
+		
+		pthread_create(worker_threads + i, attr, align_worker, worker_bundles + i);
 	}
 
 	for (i = 0; i < opt->n_files; ++i)
@@ -175,19 +140,6 @@ void single_cell_process(struct opt_count_t *opt)
 		pthread_join(worker_threads[i], NULL);
 
 	__VERBOSE("\rNumber of processed reads: %d\n", result.nread);
-
-	destroy_shared_stream(align_fstream, opt->n_threads);
-	free_align_data();
-	dqueue_destroy(q);
-
-	// FIXME: Free align data
-
-	check_some_statistics(bc_table);
-
-	quantification(opt, bc_table);
-
-	// quantification(opt->out_dir, opt->n_threads);
-
 	__VERBOSE_LOG("INFO", "Total number of reads             : %10u\n", result.nread);
 	__VERBOSE_LOG("INFO", "Number of exonic mapped reads       : %10u\n", result.exon);
 	if (opt->count_intron){
@@ -197,12 +149,168 @@ void single_cell_process(struct opt_count_t *opt)
 		__VERBOSE_LOG("INFO", "Number of nonexonic reads   : %10u\n", result.intergenic);
 	}
 	__VERBOSE_LOG("INFO", "Number of unmapped reads   : %10u\n", result.unmap);
+
+	destroy_shared_stream(align_fstream, opt->n_threads);
+	free_align_data();
+}
+
+
+void antibody_work(struct worker_data_t worker_data)
+{
+	int i;
+	struct opt_count_t *opt = worker_data.opt;
+	struct align_stat_t result = worker_data.result;
+	struct worker_bundle_t *worker_bundles = worker_data.worker_bundles;
+	pthread_t *producer_threads = worker_data.producer_threads;
+	pthread_t *worker_threads = worker_data.worker_threads;
+	pthread_attr_t *attr = worker_data.attr;
+
+	for (i = 0; i < worker_data.opt->n_threads; ++i) {
+		worker_bundles[i].q = worker_data.q;
+		worker_bundles[i].bc_table = worker_data.bc_table;
+		worker_bundles[i].lock_count = worker_data.lock_count;
+		worker_bundles[i].result = &result;
+		worker_bundles[i].lib = opt->lib;
+		worker_bundles[i].antibody_lib = worker_data.lib;
+
+		worker_bundles[i].init_bundle = NULL;
+		worker_bundles[i].destroy_bundle = NULL;
+		worker_bundles[i].map_read = &map_antibody_read;
+		pthread_create(worker_threads + i, attr, align_worker, worker_bundles + i);
+	}
+
+	for (i = 0; i < opt->n_files; ++i)
+		pthread_join(producer_threads[i], NULL);
+
+	for (i = 0; i < opt->n_threads; ++i)
+		pthread_join(worker_threads[i], NULL);
+}
+
+void process_read(struct kmhash_t *bc_table, struct opt_count_t *opt, 
+					struct quant_data_t input)
+{
+	pthread_attr_t attr;
+	struct dqueue_t *q;
+	struct align_stat_t result;
+	struct worker_data_t worker_data;
+	struct worker_bundle_t *worker_bundles;
+	struct producer_bundle_t *producer_bundles;
+	pthread_t *producer_threads, *worker_threads;
+	pthread_mutex_t producer_lock, lock_count;
+	pthread_barrier_t producer_barrier;
+	int n_consumer, i;
+
+	pthread_attr_init(&attr);
+	pthread_attr_setstacksize(&attr, THREAD_STACK_SIZE);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+
+	// parallel read files
+	q = init_dqueue_PE(opt->n_threads * 2); // must always >= n_thread * 2 in order to avoid deadlock
+	n_consumer = opt->n_threads * 2;
+
+	producer_bundles = malloc(input.n_files * sizeof(struct producer_bundle_t));
+	producer_threads = calloc(input.n_files, sizeof(pthread_t));
+
+	pthread_mutex_init(&producer_lock, NULL);
+	pthread_barrier_init(&producer_barrier, NULL, input.n_files);
+
+	for (i = 0; i < input.n_files; ++i) {
+		struct gb_pair_data *data = calloc(1, sizeof(struct gb_pair_data));
+		gb_pair_init(data, input.left_file[i], input.right_file[i]);
+
+		producer_bundles[i].n_consumer = &n_consumer;
+		producer_bundles[i].stream = (void *)data;
+		producer_bundles[i].q = q;
+		producer_bundles[i].barrier = &producer_barrier;
+		producer_bundles[i].lock = &producer_lock;
+		pthread_create(producer_threads + i, &attr, producer_worker, producer_bundles + i);
+	}
+
+	worker_bundles = malloc(opt->n_threads * sizeof(struct worker_bundle_t));
+	worker_threads = calloc(opt->n_threads, sizeof(pthread_t));
+	memset(&result, 0, sizeof(struct align_stat_t));
+	pthread_mutex_init(&lock_count, NULL);
+
+	worker_data.bc_table = bc_table;
+	worker_data.opt = opt;
+	worker_data.q = q;
+	worker_data.worker_bundles = worker_bundles;
+	worker_data.worker_threads = worker_threads;
+	worker_data.producer_threads = producer_threads;
+	worker_data.lock_count = &lock_count;
+	worker_data.attr = &attr;
+	worker_data.result = result;
+	worker_data.lib = input.lib;
+
+	(*input.action)(worker_data);
+
+	free(producer_bundles);
+	free(producer_threads);
+	free(worker_bundles);
+	free(worker_threads);
+	dqueue_destroy(q);
+}
+
+void single_cell_process(struct opt_count_t *opt)
+{
+	if (opt->cell_hashing != NULL)
+		build_reference(opt->cell_hashing);
+
+	if (opt->protein_quant != NULL)
+		build_reference(opt->protein_quant);
+
+	struct kmhash_t *bc_table = init_kmhash(KMHASH_KMHASH_SIZE - 1, opt->n_threads);
+	struct quant_data_t data;
+
+	// mRna quantification
+	data.n_files = opt->n_files;
+	data.left_file = opt->right_file;
+	data.left_file = opt->right_file;
+	data.lib = NULL;
+	data.action = &rna_work;
+
+	process_read(bc_table, opt, data);
+
+	check_some_statistics(bc_table);
+	quantification(opt, bc_table);
+
+	kmhash_destroy(bc_table);
+	
+	// Cell hashing
+	if (opt->cell_hashing == NULL && opt->protein_quant != NULL)
+		return;
+
+	bc_table = build_hash_from_cutoff(opt->n_threads);
+
+	if (opt->cell_hashing != NULL) {
+		data.lib = opt->cell_hashing;
+		data.n_files = data.lib->n_files;
+		data.left_file = data.lib->right_file;
+		data.left_file = data.lib->right_file;
+		data.action = &antibody_work;
+
+		process_read(bc_table, opt, data);
+		antibody_quant(opt, bc_table, opt->cell_hashing);
+	}
+
+	if (opt->protein_quant != NULL) {
+		data.lib = opt->protein_quant;
+		data.n_files = data.lib->n_files;
+		data.left_file = data.lib->right_file;
+		data.left_file = data.lib->right_file;
+		data.action = &antibody_work;
+
+		process_read(bc_table, opt, data);
+		antibody_quant(opt, bc_table, opt->protein_quant);
+	}
 }
 
 void *align_worker(void *data)
 {
 	struct worker_bundle_t *bundle = (struct worker_bundle_t *)data;
-	init_bundle(bundle);
+
+	if (bundle->init_bundle != NULL)
+		bundle->init_bundle(bundle);
 
 	struct dqueue_t *q = bundle->q;
 	struct align_stat_t *global_result = bundle->result;
@@ -242,7 +350,7 @@ void *align_worker(void *data)
 			if (rc1 == READ_FAIL || rc2 == READ_FAIL)
 				__ERROR("\nWrong format file\n");
 
-			align_chromium_read(&read1, &read2, bundle);
+			bundle->map_read(&read1, &read2, bundle);
 
 			if (rc1 == READ_END)
 				break;
@@ -254,7 +362,8 @@ void *align_worker(void *data)
 		memset(&own_result, 0, sizeof(struct align_stat_t));
 	}
 
-	destroy_bundle(bundle);
+	if (bundle->destroy_bundle != NULL)
+		bundle->destroy_bundle(bundle);
 	free_pair_buffer(own_buf);
 
 	pthread_exit(NULL);

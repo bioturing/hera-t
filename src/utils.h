@@ -19,6 +19,7 @@
 #include "khash.h"
 #include "pthread_barrier.h"
 #include "library_type.h"
+#include "antibody.h"
 
 #if defined(_MSC_VER)
 #include <time.h>
@@ -122,6 +123,8 @@ int64_t seq2num(const char *seq, int len);
 
 /* convert from number to [ACGTN]+ to number */
 char *num2seq(int64_t num, int len);
+
+int check_valid_nu(const char *seq, int len);
 /*
  * Global variable
  */
@@ -154,9 +157,35 @@ struct worker_bundle_t {
 	struct recycle_bin_t *recycle_bin;
 	struct seed_t *seed_cons;
 	struct array_2D_t *tmp_array;
-	// struct stream_t *unmap_st;
 	struct shared_fstream_t *align_fstream;
 	struct library_t lib;
+	struct antibody_lib_t *antibody_lib;
+	// Function pointer
+	void (*init_bundle)(struct worker_bundle_t*);
+	void (*destroy_bundle)(struct worker_bundle_t*);
+	void (*map_read)(struct read_t*, struct read_t*, struct worker_bundle_t*);
+};
+
+struct worker_data_t {
+	struct kmhash_t *bc_table;
+	struct opt_count_t *opt;
+	struct dqueue_t *q;
+	struct worker_bundle_t *worker_bundles;
+	pthread_t *worker_threads;
+	pthread_t *producer_threads;
+	pthread_mutex_t *lock_count;
+	pthread_attr_t *attr;
+	struct align_stat_t result;
+	struct antibody_lib_t *lib;
+};
+
+struct quant_data_t {
+	int n_files;
+	char **left_file;
+	char **right_file;
+	struct antibody_lib_t *lib;
+	// Function pointer
+	void (*action)(struct worker_data_t);
 };
 
 struct pair_buffer_t {

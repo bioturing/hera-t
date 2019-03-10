@@ -509,52 +509,27 @@ void kmhash_put_bc_umi(struct kmhash_t *h, kmkey_t bc, kmkey_t umi)
 	}
 }
 
-// kmint_t kmhash_get(struct kmhash_t *h, kmkey_t key)
-// {
-// 	kmint_t mask, step, i, n_probe;
-// 	kmkey_t k;
-// 	mask = h->size - 1;
-// 	k = __hash_int2(key);
-// 	i = k & mask;
-// 	n_probe = h->n_probe;
-// 	if (h->bucks[i].idx == key)
-// 		return i;
-// 	step = 1;
-// 	do {
-// 		i = (i + (step * (step + 1)) / 2) & mask;
-// 		if (h->bucks[i].idx == key)
-// 			return i;
-// 		++step;
-// 	} while (step < n_probe);
-// 	return h->size;
-// }
+void kmhash_put_bc_only(struct kmhash_t *h, kmkey_t bc)
+{
+	kmint_t k;
 
-// struct kmhash_t *init_kmhash(kmint_t size, int n_threads)
-// {
-//         __VERBOSE("Initilizing hash table\n");
-// 	struct kmhash_t *h;
-// 	kmint_t i;
-// 	kmkey_t tombstone;
-// 	h = calloc(1, sizeof(struct kmhash_t));
-// 	h->size = size;
-// 	__round_up_kmint(h->size);
-// 	h->bucks = malloc(h->size * sizeof(struct kmbucket_t));
-// 	h->n_probe = estimate_probe(h->size);
-//         __VERBOSE("Probe number: %d\n", (int)h->n_probe);
+	sem_wrap_wait(&(h->gsem));
+	k = kmhash_put_bc(h, bc);
+	sem_wrap_post(&(h->gsem));
 
-// 	tombstone = (kmkey_t)-1;
-// 	for (i = 0; i < h->size; ++i)
-// 		h->bucks[i].idx = tombstone;
+	if (k == KMHASH_MAX_SIZE) {
+		do {
+			if (__sync_bool_compare_and_swap32(&(h->status), KMHASH_IDLE, KMHASH_BUSY)) {
+				kmhash_resize(h);
+				__sync_val_compare_and_swap32(&(h->status), KMHASH_BUSY, KMHASH_IDLE);
+			}
 
-// 	h->n_workers = n_threads;
-// 	h->locks = calloc(n_threads, sizeof(pthread_mutex_t));
-// 	int k;
-// 	for (k = 0; k < n_threads; ++k)
-// 		pthread_mutex_init(h->locks + k, NULL);
-// 	h->status = KMHASH_IDLE;
-
-// 	return h;
-// }
+			sem_wrap_wait(&(h->gsem));
+			k = kmhash_put_bc(h, bc);
+			sem_wrap_post(&(h->gsem));
+		} while (k == KMHASH_MAX_SIZE);
+	}
+}
 
 struct kmhash_t *init_kmhash(kmint_t size, int n_threads)
 {
@@ -601,14 +576,3 @@ void kmhash_destroy(struct kmhash_t *h)
 	free(h->pos);
 	free(h);
 }
-
-// void kmhash_destroy(struct kmhash_t *h)
-// {
-// 	if (!h) return;
-// 	free(h->bucks);
-// 	int i;
-// 	for (i = 0; i < h->n_workers; ++i)
-// 		pthread_mutex_destroy(h->locks + i);
-// 	free(h->locks);
-// 	free(h);
-// }

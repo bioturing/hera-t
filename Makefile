@@ -27,6 +27,8 @@ SRC = src/alignment.c 				\
       src/utils.c 				\
       src/verbose.c 				\
       src/library_type.c 			\
+      src/readTSV.c 			\
+      src/antibody.c 			\
       src/main.c
 
 all:
