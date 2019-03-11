@@ -289,6 +289,7 @@ static kmint_t internal_kmhash_put(struct kmhash_t *h, kmkey_t key)
 	do {
 		i = (i + step * (step + 1) / 2) & mask;
 		cur_key = __sync_val_compare_and_swap_kmkey(&(h->bucks[i].idx), TOMB_STONE, key);
+		++step;
 	} while (step <= h->n_probe && cur_key != key && cur_key != TOMB_STONE);
 	if (cur_key == TOMB_STONE || cur_key == key) {
 		if (cur_key == TOMB_STONE) {
@@ -619,6 +620,7 @@ void kmhash_resize_single(struct kmhash_t *h)
 						y = yt;
 						break;
 					}
+					++step;
 				}
 				if (current_flag == KMFLAG_EMPTY)
 					break;
