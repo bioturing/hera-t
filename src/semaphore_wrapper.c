@@ -2,7 +2,7 @@
 #include "semaphore_wrapper.h"
 
 #ifdef _MSC_VER
-void sem_wrap_init(struct sem_wrap_t *sem, int32_t value)
+void sem_wrap_init(struct sem_wrap_t *sem, uint32_t value)
 #else
 inline void sem_wrap_init(struct sem_wrap_t *sem, uint32_t value)
 #endif

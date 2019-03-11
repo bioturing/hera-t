@@ -30,16 +30,13 @@ typedef uint64_t kmval_t;
 
 struct umi_hash_t {
 	kmint_t size;
-	kmint_t old_size;
 	kmint_t n_items;
 	kmkey_t *bucks;
-	kmkey_t *old_bucks;
-	int status;
 };
 
 struct kmbucket_t {
 	kmkey_t idx;
-	struct sem_wrap_t bsem;
+	pthread_mutex_t lock;
 	struct umi_hash_t *umis;
 };
 
@@ -47,21 +44,15 @@ struct kmhash_t {
 	kmint_t size;
 	kmint_t old_size;
 	kmint_t n_items;
-	// kmint_t n_probe;
+	kmint_t n_probe;
 	struct kmbucket_t *bucks;
-	struct kmbucket_t *old_bucks;
+	// struct kmbucket_t *old_bucks;
+	uint8_t *flag;
 	int status;
 	int n_workers;
-	struct sem_wrap_t gsem;
-	// pthread_mutex_t *locks;
+	// struct sem_wrap_t gsem;
+	pthread_mutex_t *locks;
 	int *pos;
-};
-
-struct umiresize_bundle_t {
-	struct umi_hash_t *h;
-	int n_threads;
-	int thread_no;
-	pthread_barrier_t *barrier;
 };
 
 struct kmresize_bundle_t {
@@ -75,7 +66,8 @@ struct kmhash_t *init_kmhash(kmint_t size, int n_threads);
 
 void kmhash_destroy(struct kmhash_t *h);
 
-void kmhash_put_bc_umi(struct kmhash_t *h, kmkey_t bc, kmkey_t umi);
+void kmhash_put_bc_umi(struct kmhash_t *h, pthread_mutex_t *lock,
+						kmkey_t bc, kmkey_t umi);
 
 void umihash_put_umi_single(struct umi_hash_t *h, kmkey_t key);
 

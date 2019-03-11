@@ -13,6 +13,10 @@
 #define __sync_bool_compare_and_swap64(ptr, a, v) (InterlockedCompareExchange64(ptr, v, a) == (a))
 
 #else
+#define __sync_fetch_and_add8 __sync_fetch_and_add
+#define __sync_val_compare_and_swap8(ptr, a, v) __sync_val_compare_and_swap(ptr, a, v)
+#define __sync_bool_compare_and_swap8(ptr, a, v) __sync_bool_compare_and_swap(ptr, a, v)
+
 #define __sync_fetch_and_add32 __sync_fetch_and_add
 #define __sync_val_compare_and_swap32(ptr, a, v) __sync_val_compare_and_swap(ptr, a, v)
 #define __sync_bool_compare_and_swap32(ptr, a, v) __sync_bool_compare_and_swap(ptr, a, v)
