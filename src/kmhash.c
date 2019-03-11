@@ -931,6 +931,8 @@ void kmhash_put_bc_only(struct kmhash_t *h, pthread_mutex_t *lock,
 	kmint_t k;
 	pthread_mutex_lock(lock);
 	k = internal_kmhash_put(h, bc);
+	if (k != KMHASH_MAX_SIZE)
+		h->bucks[k].umis = init_umi_hash();
 	pthread_mutex_unlock(lock);
 
 	while (k == KMHASH_MAX_SIZE) {
@@ -940,6 +942,8 @@ void kmhash_put_bc_only(struct kmhash_t *h, pthread_mutex_t *lock,
 		}
 		pthread_mutex_lock(lock);
 		k = internal_kmhash_put(h, bc);
+		if (k != KMHASH_MAX_SIZE)
+			h->bucks[k].umis = init_umi_hash();
 		pthread_mutex_unlock(lock);
 	}
 }
