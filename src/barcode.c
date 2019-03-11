@@ -477,21 +477,22 @@ struct kmhash_t *build_hash_from_cutoff(int n_threads)
 
 void parse_barcode(struct kmhash_t *h)
 {
-	int i;
+	int i, k;
 	for (i = 0; i < n_bc; ++i) {
-		CBs[i].cnt_umi = h->bucks[i].umis->n_items;
-		CBs[i].h = h->bucks[i].umis;
+		k = kmhash_get(h, CBs[i].idx);
+		CBs[i].cnt_umi = h->bucks[k].umis->n_items;
+		CBs[i].h = h->bucks[k].umis;
 	}
 }
 
 void antibody_quant(struct opt_count_t *opt, struct kmhash_t *h,
-					struct antibody_lib_t *lib)
+					struct antibody_lib_t *lib, const char *dir)
 {
 	parse_barcode(h);
 
 	char out_dir[MAX_PATH];
 	strcpy(out_dir, opt->out_dir);
-	strcat(out_dir, "/cell_hashing");
+	strcat(out_dir, dir);
 	make_dir(out_dir);
 
 	print_barcodes(out_dir);

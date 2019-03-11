@@ -185,7 +185,7 @@ void antibody_work(struct worker_data_t worker_data)
 	for (i = 0; i < opt->n_threads; ++i)
 		pthread_join(worker_threads[i], NULL);
 
-	__VERBOSE("\rNumber of processed reads: %d\n", result.nread);
+	__VERBOSE("\r");
 	__VERBOSE_LOG("INFO", "Total number of reads             : %10u\n", result.nread);
 }
 
@@ -286,6 +286,7 @@ void single_cell_process(struct opt_count_t *opt)
 	bc_table = build_hash_from_cutoff(opt->n_threads);
 
 	if (opt->cell_hashing != NULL) {
+		__VERBOSE("\n");
 		__VERBOSE_LOG("INFO", "Map reads for cell hashing\n");
 		data.lib = opt->cell_hashing;
 		data.n_files = data.lib->n_files;
@@ -294,10 +295,11 @@ void single_cell_process(struct opt_count_t *opt)
 		data.action = &antibody_work;
 
 		process_read(bc_table, opt, data);
-		antibody_quant(opt, bc_table, opt->cell_hashing);
+		antibody_quant(opt, bc_table, opt->cell_hashing, "/cell_hashing");
 	}
 
 	if (opt->protein_quant != NULL) {
+		__VERBOSE("\n");
 		__VERBOSE_LOG("INFO", "Map reads for protein measurement\n");
 		data.lib = opt->protein_quant;
 		data.n_files = data.lib->n_files;
@@ -306,7 +308,7 @@ void single_cell_process(struct opt_count_t *opt)
 		data.action = &antibody_work;
 
 		process_read(bc_table, opt, data);
-		antibody_quant(opt, bc_table, opt->protein_quant);
+		antibody_quant(opt, bc_table, opt->protein_quant, "/protein_quant");
 	}
 }
 

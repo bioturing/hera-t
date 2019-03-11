@@ -10,7 +10,7 @@
 
 const uint64_t _pow5_r[] = {1ull, 5ull, 25ull, 125ull, 625ull, 3125ull, 15625ull, 78125ull, 390625ull, 1953125ull, 9765625ull, 48828125ull, 244140625ull, 1220703125ull, 6103515625ull, 30517578125ull, 152587890625ull, 762939453125ull, 3814697265625ull, 19073486328125ull, 95367431640625ull, 476837158203125ull, 2384185791015625ull, 11920928955078125ull, 59604644775390625ull, 298023223876953125ull, 1490116119384765625ull};
 
-struct antibody_lib_t *init_antibody_lib(int8_t type)
+struct antibody_lib_t *init_antibody_lib()
 {
 	struct antibody_lib_t *lib;
 
@@ -19,7 +19,6 @@ struct antibody_lib_t *init_antibody_lib(int8_t type)
 	lib->n_files = 0;
 	lib->left_file = lib->right_file = NULL;
 	lib->trim = -1;
-	lib->type = type;
 
 	return lib;
 }

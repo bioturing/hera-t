@@ -3,11 +3,7 @@
 
 #include "kmhash.h"
 #include "khash.h"
-#include "utils.h"
-
-// antibody used for
-#define CELL_HASHING            0
-#define PROTEIN_QUANT           1   
+#include "utils.h"  
 
 KHASH_MAP_INIT_INT(bc, int);
 
@@ -22,18 +18,16 @@ struct reference_t {
 };
 
 struct antibody_lib_t {
-        char *whitelist_path;   // Path to whitelist tsv file
+	char *whitelist_path;   // Path to whitelist tsv file
 	char **left_file;       // Path to read 1 fastqs
 	char **right_file;      // Path to read 2 fastqs
 	int n_files;
+	int8_t trim;           // Number of base must be trimmed from start
 
-        int8_t type;            // antibody used for
-        int8_t trim;           // Number of base must be trimmed from start
-
-        struct reference_t *ref;
+	struct reference_t *ref;
 };
 
-struct antibody_lib_t *init_antibody_lib(int8_t type);
+struct antibody_lib_t *init_antibody_lib();
 
 struct antibody_lib_t *check_valid_cell(struct antibody_lib_t *lib);
 

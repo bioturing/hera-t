@@ -16,8 +16,6 @@
 #define SIZE_128MB		134217728
 
 #define GENE_BIT_LEN		22
-#define TAG_BIT_LEN			32
-
 #define GENE_MASK		UINT64_C(0x3fffff)
 
 #define NNU			4

@@ -229,8 +229,8 @@ struct opt_count_t *get_opt_count(int argc, char *argv[])
 	struct antibody_lib_t *cell_hashing, *protein_quant;
 
 	opt = init_opt_count();
-	cell_hashing = init_antibody_lib(CELL_HASHING);
-	protein_quant = init_antibody_lib(PROTEIN_QUANT);
+	cell_hashing = init_antibody_lib();
+	protein_quant = init_antibody_lib();
 
 	int pos = 0, n;
 	while (pos < argc) {
