@@ -471,7 +471,7 @@ struct kmhash_t *build_hash_from_cutoff(int n_threads)
 	struct kmhash_t *bc_table = init_kmhash(KMHASH_KMHASH_SIZE - 1, n_threads);
 
 	for (i = 0; i < n_bc; ++i)
-		kmhash_put_bc_only(bc_table, CBs[i].idx);
+		kmhash_put_bc_only(bc_table, bc_table->locks, CBs[i].idx);
 	return bc_table;
 }
 

@@ -119,6 +119,7 @@ void rna_work(struct worker_data_t worker_data)
 		worker_bundles[i].q = worker_data.q;
 		worker_bundles[i].bc_table = worker_data.bc_table;
 		worker_bundles[i].lock_count = worker_data.lock_count;
+		worker_bundles[i].lock_hash = worker_data.bc_table->locks + i;
 		worker_bundles[i].result = &result;
 		worker_bundles[i].lib = opt->lib;
 		if (opt->is_dump_align)
@@ -169,6 +170,7 @@ void antibody_work(struct worker_data_t worker_data)
 		worker_bundles[i].q = worker_data.q;
 		worker_bundles[i].bc_table = worker_data.bc_table;
 		worker_bundles[i].lock_count = worker_data.lock_count;
+		worker_bundles[i].lock_hash = worker_data.bc_table->locks + i;
 		worker_bundles[i].result = &result;
 		worker_bundles[i].lib = opt->lib;
 		worker_bundles[i].antibody_lib = worker_data.lib;

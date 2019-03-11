@@ -151,6 +151,7 @@ struct worker_bundle_t {
 	struct dqueue_t *q;
 	struct kmhash_t *bc_table;
 	pthread_mutex_t *lock_count;
+	pthread_mutex_t *lock_hash;
 	struct align_stat_t *result;
 	struct raw_alg_t *alg_array;
 	struct interval_t *intron_array;

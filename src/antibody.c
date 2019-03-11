@@ -271,7 +271,7 @@ void map_antibody_read(struct read_t *read1, struct read_t *read2,
 
 	umi_idx = seq2num(read1->seq + bc_len, umi_len);
 	umi_idx = umi_idx << GENE_BIT_LEN | tag_idx;
-	kmhash_put_bc_umi(h, bc_idx, umi_idx);
+	kmhash_put_bc_umi(h, bundle->lock_hash, bc_idx, umi_idx);
 }
 
 void print_ref(const char *out_dir, struct reference_t *ref)
