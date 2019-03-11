@@ -292,7 +292,7 @@ void write_mtx(const char *out_dir)
 	xwfclose(fmtx);
 }
 
-void correct_umi(struct sc_cell_t *bc)
+void correct_umi(struct sc_cell_t *bc, int n_genes)
 {
 	struct umi_hash_t *h;
 	kmint_t i, iter;
@@ -301,7 +301,7 @@ void correct_umi(struct sc_cell_t *bc)
 	h = bc->h;
 
 	for (i = 0; i < h->size; ++i) {
-		if (h->bucks[i] == TOMB_STONE || __get_gene(h->bucks[i]) == genes.n)
+		if (h->bucks[i] == TOMB_STONE || __get_gene(h->bucks[i]) == n_genes)
 			continue;
 		umi_idx = __get_umi(h->bucks[i]);
 		gene = __get_gene(h->bucks[i]);
@@ -313,7 +313,7 @@ void correct_umi(struct sc_cell_t *bc)
 		}
 
 		if (has_Ns) {
-			h->bucks[i] = h->bucks[i] >> GENE_BIT_LEN << GENE_BIT_LEN | genes.n;
+			h->bucks[i] = h->bucks[i] >> GENE_BIT_LEN << GENE_BIT_LEN | n_genes;
 			continue;
 		}
 		flag = 0;
@@ -327,7 +327,7 @@ void correct_umi(struct sc_cell_t *bc)
 				new_bin = (new_umi << GENE_BIT_LEN | gene);
 				iter = umihash_get(h, new_bin);
 				if (iter != KMHASH_MAX_SIZE) {
-					h->bucks[i] = h->bucks[i] >> GENE_BIT_LEN << GENE_BIT_LEN | genes.n;
+					h->bucks[i] = h->bucks[i] >> GENE_BIT_LEN << GENE_BIT_LEN | n_genes;
 					flag = 1;
 					break;
 				}
@@ -338,23 +338,23 @@ void correct_umi(struct sc_cell_t *bc)
 	}
 }
 
-void count_genes(struct sc_cell_t *bc, int bc_pos, int *cnt, FILE *fbin,
-		 pthread_mutex_t *lock, uint64_t *n_lines)
+void count_genes(struct sc_cell_t *bc, int bc_pos, int *cnt, int n_genes,
+		FILE *fbin, pthread_mutex_t *lock, uint64_t *n_lines)
 {
 	kmint_t i;
 	int k;
 	struct umi_hash_t *h;
 	h = bc->h;
 
-	memset(cnt, 0, genes.n * sizeof(int));
+	memset(cnt, 0, n_genes * sizeof(int));
 	for (i = 0; i < h->size; ++i) {
-		if (h->bucks[i] == TOMB_STONE || __get_gene(h->bucks[i]) == genes.n)
+		if (h->bucks[i] == TOMB_STONE || __get_gene(h->bucks[i]) == n_genes)
 			continue;
 		++cnt[__get_gene(h->bucks[i])];
 	}
 
 	pthread_mutex_lock(lock);
-	for (k = 1; k <= genes.n; ++k) {
+	for (k = 1; k <= n_genes; ++k) {
 		if (cnt[k - 1]) {
 			++*n_lines;
 			xfwrite(&k, sizeof(int), 1, fbin);
@@ -383,8 +383,8 @@ void *umi_worker(void *data)
 
 	for (i = 0; i < n_bc; ++i) {
 		if (i % n_threads == thread_no) {
-			correct_umi(CBs + i);
-			count_genes(CBs + i, i + 1, cnt, fbin, lock, n_lines);
+			correct_umi(CBs + i, bundle->n_genes);
+			count_genes(CBs + i, i + 1, cnt, bundle->n_genes, fbin, lock, n_lines);
 		}
 	}
 
@@ -401,7 +401,7 @@ void do_correct_umi(struct opt_count_t *opt, int n_genes, const char *out_dir)
 	FILE *fbin;
 	fbin = xfopen(out_path, "wb");
 
-	xfwrite(&genes.n, sizeof(int), 1, fbin);
+	xfwrite(&n_genes, sizeof(int), 1, fbin);
 	xfwrite(&n_bc, sizeof(int), 1, fbin);
 
 	uint64_t n_lines = 0;
