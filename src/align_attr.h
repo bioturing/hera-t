@@ -27,6 +27,7 @@ struct align_stat_t {
 	int unmap;
 	int intron;
 	int intergenic;
+	int filter;
 };
 
 struct align_t {

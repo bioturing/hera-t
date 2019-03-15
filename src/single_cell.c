@@ -75,9 +75,6 @@ void single_cell(int pos, int argc, char *argv[])
 
 	load_index(opt->index, opt->count_intron);
 
-	extern struct gene_info_t genes;
-	init_barcode(&genes, opt->lib);
-
 	single_cell_process(opt);
 }
 
@@ -140,16 +137,17 @@ void rna_work(struct worker_data_t worker_data)
 	for (i = 0; i < opt->n_threads; ++i)
 		pthread_join(worker_threads[i], NULL);
 
-	__VERBOSE("\rNumber of processed reads: %d\n", result.nread);
-	__VERBOSE_LOG("INFO", "Total number of reads             : %10u\n", result.nread);
+	__VERBOSE("\r");
+	__VERBOSE_LOG("INFO", "Total number of reads               : %10u\n", result.nread);
+	__VERBOSE_LOG("INFO", "Number of low complexity reads      : %10u\n", result.filter);
 	__VERBOSE_LOG("INFO", "Number of exonic mapped reads       : %10u\n", result.exon);
 	if (opt->count_intron){
-		__VERBOSE_LOG("INFO", "Number of intronic reads   : %10u\n", result.intron);
-		__VERBOSE_LOG("INFO", "Number of intergenic reads   : %10u\n", result.intergenic);
+		__VERBOSE_LOG("INFO", "Number of intronic reads            : %10u\n", result.intron);
+		__VERBOSE_LOG("INFO", "Number of intergenic reads          : %10u\n", result.intergenic);
 	} else {
-		__VERBOSE_LOG("INFO", "Number of nonexonic reads   : %10u\n", result.intergenic);
+		__VERBOSE_LOG("INFO", "Number of nonexonic reads           : %10u\n", result.intergenic);
 	}
-	__VERBOSE_LOG("INFO", "Number of unmapped reads   : %10u\n", result.unmap);
+	__VERBOSE_LOG("INFO", "Number of unmapped reads            : %10u\n", result.unmap);
 
 	destroy_shared_stream(align_fstream, opt->n_threads);
 	free_align_data();
@@ -188,14 +186,17 @@ void antibody_work(struct worker_data_t worker_data)
 		pthread_join(worker_threads[i], NULL);
 
 	__VERBOSE("\r");
-	__VERBOSE_LOG("INFO", "Total number of reads             : %10u\n", result.nread);
+	__VERBOSE_LOG("INFO", "Total number of reads               : %10u\n", result.nread);
+	__VERBOSE_LOG("INFO", "Number of low complexity reads      : %10u\n", result.filter);
+	__VERBOSE_LOG("INFO", "Number of mapped reads              : %10u\n", result.exon);
+	__VERBOSE_LOG("INFO", "Number of unmapped reads            : %10u\n", result.unmap);
 }
 
-void process_read(struct kmhash_t *bc_table, struct opt_count_t *opt, 
-					struct quant_data_t input)
+void process_read(struct opt_count_t *opt, struct quant_data_t input)
 {
 	pthread_attr_t attr;
 	struct dqueue_t *q;
+	struct kmhash_t *bc_table;
 	struct align_stat_t result;
 	struct worker_data_t worker_data;
 	struct worker_bundle_t *worker_bundles;
@@ -236,6 +237,9 @@ void process_read(struct kmhash_t *bc_table, struct opt_count_t *opt,
 	memset(&result, 0, sizeof(struct align_stat_t));
 	pthread_mutex_init(&lock_count, NULL);
 
+
+	bc_table = init_kmhash(KMHASH_KMHASH_SIZE - 1, opt->n_threads);
+
 	worker_data.bc_table = bc_table;
 	worker_data.opt = opt;
 	worker_data.q = q;
@@ -254,63 +258,65 @@ void process_read(struct kmhash_t *bc_table, struct opt_count_t *opt,
 	free(worker_bundles);
 	free(worker_threads);
 	dqueue_destroy(q);
+
+	check_some_statistics(bc_table);
+	quantification(opt, bc_table, input.type, input.n_refs);
+
+	kmhash_destroy(bc_table);
 }
 
 void single_cell_process(struct opt_count_t *opt)
 {
-	if (opt->cell_hashing != NULL)
-		build_reference(opt->cell_hashing);
-
-	if (opt->protein_quant != NULL)
-		build_reference(opt->protein_quant);
-
-	struct kmhash_t *bc_table = init_kmhash(KMHASH_KMHASH_SIZE - 1, opt->n_threads);
 	struct quant_data_t data;
 
 	// mRna quantification
+	data.type = "/gene_expression";
+	data.n_refs = genes.n;
 	data.n_files = opt->n_files;
 	data.left_file = opt->left_file;
 	data.right_file = opt->right_file;
 	data.lib = NULL;
 	data.action = &rna_work;
 
-	process_read(bc_table, opt, data);
-
-	check_some_statistics(bc_table);
-	quantification(opt, bc_table);
-
-	kmhash_destroy(bc_table);
+	process_read(opt, data);
+	print_genes(opt->out_dir, data.type, genes);
 	
 	// Cell hashing
-	if (opt->cell_hashing == NULL && opt->protein_quant == NULL)
-		return;
-
-	bc_table = build_hash_from_cutoff(opt->n_threads);
-
 	if (opt->cell_hashing != NULL) {
+		build_reference(opt->cell_hashing);
+
 		__VERBOSE("\n");
 		__VERBOSE_LOG("INFO", "Map reads for cell hashing\n");
+
+		data.type = "/cell_hashing";
+		data.n_refs = opt->cell_hashing->ref->n_ref;
 		data.lib = opt->cell_hashing;
 		data.n_files = data.lib->n_files;
 		data.left_file = data.lib->left_file;
 		data.right_file = data.lib->right_file;
 		data.action = &antibody_work;
 
-		process_read(bc_table, opt, data);
-		antibody_quant(opt, bc_table, opt->cell_hashing, "/cell_hashing");
+
+		process_read(opt, data);
+		print_ref(opt->out_dir, data.type, data.lib->ref);
 	}
 
 	if (opt->protein_quant != NULL) {
+		build_reference(opt->protein_quant);
+
 		__VERBOSE("\n");
 		__VERBOSE_LOG("INFO", "Map reads for protein measurement\n");
+
+		data.type = "/protein_expression";
+		data.n_refs = opt->protein_quant->ref->n_ref;
 		data.lib = opt->protein_quant;
 		data.n_files = data.lib->n_files;
 		data.left_file = data.lib->left_file;
 		data.right_file = data.lib->right_file;
 		data.action = &antibody_work;
 
-		process_read(bc_table, opt, data);
-		antibody_quant(opt, bc_table, opt->protein_quant, "/protein_quant");
+		process_read(opt, data);
+		print_ref(opt->out_dir, data.type, data.lib->ref);
 	}
 }
 

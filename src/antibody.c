@@ -25,30 +25,30 @@ struct antibody_lib_t *init_antibody_lib()
 
 void destroy_antibody_lib(struct antibody_lib_t *lib)
 {
-        free(lib);
+	free(lib);
 }
 
 int is_defined(struct antibody_lib_t *lib)
 {
-        int is_defined = lib->whitelist_path != NULL;
-        is_defined &= lib->left_file != NULL;
-        is_defined &= lib->right_file != NULL;
+	int is_defined = lib->whitelist_path != NULL;
+	is_defined &= lib->left_file != NULL;
+	is_defined &= lib->right_file != NULL;
 
-        if (!is_defined)
-                destroy_antibody_lib(lib);
-        return is_defined;
+	if (!is_defined)
+		destroy_antibody_lib(lib);
+	return is_defined;
 }
 
 struct antibody_lib_t *check_valid_cell(struct antibody_lib_t *lib)
 {
-        if (!is_defined(lib))
-                return NULL;
+	if (!is_defined(lib))
+		return NULL;
 
 	if (lib->trim < 0){
 		__WARNING("--cell_trim param is not defined.\
-                        No base will be trimmed off from read 2.");
-                lib->trim = 0;
-        }
+			No base will be trimmed off from read 2.");
+		lib->trim = 0;
+	}
 
 	if (lib->whitelist_path == NULL)
 		__ERROR("Missing --cell_tags argument");
@@ -56,19 +56,19 @@ struct antibody_lib_t *check_valid_cell(struct antibody_lib_t *lib)
 	if (lib->left_file == NULL || lib->right_file == NULL)
 		__ERROR("Missing input files for cell hashing");
 
-        return lib;
+	return lib;
 }
 
 struct antibody_lib_t *check_valid_protein(struct antibody_lib_t *lib)
 {
-        if (!is_defined(lib))
-                return NULL;
+	if (!is_defined(lib))
+		return NULL;
 
 	if (lib->trim < 0){
 		__WARNING("--protein_trim param is not defined.\
-                        No base will be trimmed off from read 2.");
-                lib->trim = 0;
-        }
+			No base will be trimmed off from read 2.");
+		lib->trim = 0;
+	}
 
 	if (lib->whitelist_path == NULL)
 		__ERROR("Missing --protein_tags argument");
@@ -76,7 +76,7 @@ struct antibody_lib_t *check_valid_protein(struct antibody_lib_t *lib)
 	if (lib->left_file == NULL || lib->right_file == NULL)
 		__ERROR("Missing input files for protein level quantification");
 
-        return lib;
+	return lib;
 }
 
 struct reference_t *init_reference()
@@ -194,33 +194,6 @@ void build_reference(struct antibody_lib_t *lib)
 	lib->ref = ref;
 }
 
-int64_t correct_bc(struct kmhash_t *h, int64_t idx, int len)
-{
-
-	int32_t i, k;
-	int64_t tmp_idx, new_idx, ch, c;
-
-	k = kmhash_get(h, idx);
-	if (k != KMHASH_MAX_SIZE)
-		return idx;
-
-	for (i = 0; i < len; ++i) {
-		ch = (idx / _pow5_r[i]) % 5;
-		tmp_idx = idx - ch * _pow5_r[i];
-		for (c = 0; c < NNU; ++c) {
-			if (ch == c)
-				continue;
-			new_idx = tmp_idx + _pow5_r[i] * c;
-
-			k = kmhash_get(h, new_idx);
-			if (k != KMHASH_MAX_SIZE)
-				return new_idx;
-		}
-	}
-
-	return -1;	
-}
-
 int32_t get_tag_idx(struct antibody_lib_t *lib, struct read_t *read)
 {
 	if (lib->trim > read->len)
@@ -258,23 +231,28 @@ void map_antibody_read(struct read_t *read1, struct read_t *read2,
 
 	++bundle->result->nread;
 
+	if (check_low_complexcity(read1->seq, read1->len) ||
+		check_low_complexcity(read2->seq, read2->len)){
+		++bundle->result->filter;
+		return;
+	}
+
 	h = bundle->bc_table;
-	bc_idx = seq2num(read1->seq, bc_len);
-	bc_idx = correct_bc(h, bc_idx, bc_len);
-
-	if (bc_idx == -1)
-		return;
-
 	tag_idx = get_tag_idx(bundle->antibody_lib, read2);
-	if (tag_idx == -1)
+	if (tag_idx == -1){
+		++bundle->result->unmap;
 		return;
+	}
 
+	bc_idx = seq2num(read1->seq, bc_len);
 	umi_idx = seq2num(read1->seq + bc_len, umi_len);
 	umi_idx = umi_idx << GENE_BIT_LEN | tag_idx;
 	kmhash_put_bc_umi(h, bundle->lock_hash, bc_idx, umi_idx);
+
+	++bundle->result->exon;
 }
 
-void print_ref(const char *out_dir, struct reference_t *ref)
+void print_ref(const char *out_dir, const char *type, struct reference_t *ref)
 {
 	int i, start, len;
 	char id[ref->ref_len + 1];
@@ -282,6 +260,7 @@ void print_ref(const char *out_dir, struct reference_t *ref)
 	FILE *fp;
 
 	strcpy(out_path, out_dir);
+	strcat(out_path, type);
 	strcat(out_path, "/tags.tsv");
 
 	fp = xfopen(out_path, "w");

@@ -125,6 +125,9 @@ int64_t seq2num(const char *seq, int len);
 char *num2seq(int64_t num, int len);
 
 int check_valid_nu(const char *seq, int len);
+
+int check_low_complexcity(const char *seq, int len);
+
 /*
  * Global variable
  */
@@ -181,6 +184,8 @@ struct worker_data_t {
 };
 
 struct quant_data_t {
+	const char *type;
+	int n_refs;
 	int n_files;
 	char **left_file;
 	char **right_file;

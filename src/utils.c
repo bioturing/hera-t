@@ -82,6 +82,22 @@ int check_valid_nu(const char *seq, int len)
 	return 1;
 }
 
+int check_low_complexcity(const char *seq, int len)
+{
+	int i, t;
+	int count[NNU + 1];
+
+	memset(count, 0, (NNU + 1) * sizeof(int));
+	for (i = 0; i < len; ++i)
+		++count[nt4_table[(int)seq[i]]];
+
+	t = len >> 1;
+	for (i = 0; i <= NNU; ++i)
+		if (count[i] >= t)
+			return 0;
+	return 1;
+}
+
 int64_t seq2num(const char *seq, int len)
 {
 	int64_t ret = 0;

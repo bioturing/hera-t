@@ -36,8 +36,8 @@ struct antibody_lib_t *check_valid_protein(struct antibody_lib_t *lib);
 void build_reference(struct antibody_lib_t *lib);
 
 void map_antibody_read(struct read_t *read1, struct read_t *read2,
-			 struct worker_bundle_t *bundle);
+			struct worker_bundle_t *bundle);
 
-void print_ref(const char *out_dir, struct reference_t *ref);
+void print_ref(const char *out_dir, const char *type, struct reference_t *ref);
 
 #endif
