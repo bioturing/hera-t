@@ -107,124 +107,6 @@ static kmint_t internal_umihash_put(struct umi_hash_t *h, kmkey_t key)
 	return h->bucks[i] == key ? i : KMHASH_MAX_SIZE;
 }
 
-// static kmint_t internal_umihash_put(struct umi_hash_t *h, kmkey_t key)
-// {
-// 	if (h->n_items >= (kmint_t)(h->size * KMHASH_UPPER))
-// 		return KMHASH_MAX_SIZE;
-// 	kmint_t mask, i, last, step = 0;
-// 	kmkey_t cur_key;
-// 	uint64_t k;
-
-// 	mask = h->size - 1;
-// 	k = __hash_int2(key);
-// 	last = i = k & mask;
-// 	{
-// 		cur_key = __sync_val_compare_and_swap_kmkey(h->bucks + i, TOMB_STONE, key);
-// 		if (cur_key == TOMB_STONE || cur_key == key) {
-// 			if (cur_key == TOMB_STONE)
-// 				__sync_fetch_and_add_kmint(&(h->n_items), 1);
-// 			return i;
-// 		}
-// 	}
-// 	do {
-// 		i = (i + (++step)) & mask;
-// 		cur_key = __sync_val_compare_and_swap_kmkey(h->bucks + i, TOMB_STONE, key);
-// 	} while (cur_key != TOMB_STONE && cur_key != key && i != last);
-// 	if (cur_key == TOMB_STONE || cur_key == key) {
-// 		if (cur_key == TOMB_STONE)
-// 			__sync_fetch_and_add_kmint(&(h->n_items), 1);
-// 		return i;
-// 	}
-// 	return KMHASH_MAX_SIZE;
-// }
-
-// static kmint_t umihash_put_umi(struct umi_hash_t *h, kmkey_t key)
-// {
-// 	if ((kmint_t)(h->size * KMHASH_UPPER) < h->n_items)
-// 		return KMHASH_MAX_SIZE;
-// 	kmint_t mask, step, i, last;
-// 	kmkey_t cur_key, k;
-
-// 	mask = h->size - 1;
-// 	k = __hash_int(key);
-// 	last = i = k & mask;
-// 	{
-// 		cur_key = __sync_val_compare_and_swap_kmkey(&(h->bucks[i]), TOMB_STONE, key);
-// 		if (cur_key == TOMB_STONE || cur_key == key) {
-// 			if (cur_key == TOMB_STONE)
-// 				__sync_fetch_and_add_kmint(&(h->n_items), 1);
-// 			return i;
-// 		}
-// 	}
-// 	step = 0;
-// 	do {
-// 		i = (i + (++step)) & mask;
-// 		cur_key = __sync_val_compare_and_swap_kmkey(&(h->bucks[i]), TOMB_STONE, key);
-// 	} while (cur_key != TOMB_STONE && cur_key != key && i != last);
-// 	if (cur_key == TOMB_STONE || cur_key == key) {
-// 		if (cur_key == TOMB_STONE)
-// 			__sync_fetch_and_add_kmint(&(h->n_items), 1);
-// 		return i;
-// 	}
-// 	return KMHASH_MAX_SIZE;
-// }
-
-// static kmint_t kmhash_put_bc_no_init(struct kmhash_t *h, kmkey_t key)
-// {
-// 	if ((kmint_t)(h->size * KMHASH_UPPER) < h->n_items)
-// 		return KMHASH_MAX_SIZE;
-// 	kmint_t mask, step, i, last;
-// 	kmkey_t cur_key, k;
-
-// 	mask = h->size - 1;
-// 	k = __hash_int(key);
-// 	last = i = k & mask;
-// 	{
-// 		cur_key = __sync_val_compare_and_swap_kmkey(&(h->bucks[i].idx), TOMB_STONE, key);
-// 		if (cur_key == TOMB_STONE || cur_key == key) {
-// 			if (cur_key == TOMB_STONE) {
-// 				// init_bc_bucks(h->bucks + i, h->n_workers);
-// 				__sync_fetch_and_add_kmint(&(h->n_items), 1);
-// 			}
-// 			return i;
-// 		}
-// 	}
-// 	step = 0;
-// 	do {
-// 		i = (i + (++step)) & mask;
-// 		cur_key = __sync_val_compare_and_swap_kmkey(&(h->bucks[i].idx), TOMB_STONE, key);
-// 	} while (cur_key != TOMB_STONE && cur_key != key && i != last);
-// 	if (cur_key == TOMB_STONE || cur_key == key) {
-// 		if (cur_key == TOMB_STONE) {
-// 			// init_bc_bucks(h->bucks + i, h->n_workers);
-// 			__sync_fetch_and_add_kmint(&(h->n_items), 1);
-// 		}
-// 		return i;
-// 	}
-// 	return KMHASH_MAX_SIZE;
-// }
-
-// kmint_t kmhash_get(struct kmhash_t *h, kmkey_t key)
-// {
-// 	kmint_t mask, step, i, last;
-// 	kmkey_t k;
-
-// 	mask = h->size - 1;
-// 	k = __hash_int(key);
-// 	last = i = k & mask;
-// 	if (h->bucks[i].idx == key)
-// 		return i;
-// 	if (h->bucks[i].idx == TOMB_STONE)
-// 		return KMHASH_MAX_SIZE;
-// 	step = 0;
-// 	do {
-// 		i = (i + (++step)) & mask;
-// 		if (h->bucks[i].idx == key)
-// 			return i;
-// 	} while (i != last && h->bucks[i].idx != TOMB_STONE);
-// 	return KMHASH_MAX_SIZE;
-// }
-
 kmint_t kmhash_get(struct kmhash_t *h, kmkey_t key)
 {
 	kmint_t mask, i, step = 0;
@@ -256,27 +138,6 @@ kmint_t umihash_get(struct umi_hash_t *h, kmkey_t key)
 	return h->bucks[i] == key ? i : KMHASH_MAX_SIZE;
 }
 
-// kmint_t umihash_get(struct umi_hash_t *h, kmkey_t key)
-// {
-// 	kmint_t mask, step, i, last;
-// 	kmkey_t k;
-
-// 	mask = h->size - 1;
-// 	k = __hash_int(key);
-// 	last = i = k & mask;
-// 	if (h->bucks[i] == key)
-// 		return i;
-// 	if (h->bucks[i] == TOMB_STONE)
-// 		return KMHASH_MAX_SIZE;
-// 	step = 0;
-// 	do {
-// 		i = (i + (++step)) & mask;
-// 		if (h->bucks[i] == key)
-// 			return i;
-// 	} while (i != last && h->bucks[i] != TOMB_STONE);
-// 	return KMHASH_MAX_SIZE;
-// }
-
 static kmint_t internal_kmhash_put(struct kmhash_t *h, kmkey_t key)
 {
 	kmint_t mask, i, step = 0;
@@ -300,79 +161,6 @@ static kmint_t internal_kmhash_put(struct kmhash_t *h, kmkey_t key)
 	}
 	return KMHASH_MAX_SIZE;
 }
-
-// static kmint_t kmhash_put_bc(struct kmhash_t *h, kmkey_t key)
-// {
-// 	if ((kmint_t)(h->size * KMHASH_UPPER) < h->n_items)
-// 		return KMHASH_MAX_SIZE;
-// 	kmint_t mask, step, i, last;
-// 	kmkey_t cur_key, k;
-
-// 	mask = h->size - 1;
-// 	k = __hash_int(key);
-// 	last = i = k & mask;
-// 	{
-// 		cur_key = __sync_val_compare_and_swap_kmkey(&(h->bucks[i].idx), TOMB_STONE, key);
-// 		if (cur_key == TOMB_STONE || cur_key == key) {
-// 			if (cur_key == TOMB_STONE) {
-// 				init_bc_bucks(h->bucks + i, h->n_workers);
-// 				__sync_fetch_and_add_kmint(&(h->n_items), 1);
-// 			}
-// 			return i;
-// 		}
-// 	}
-// 	step = 0;
-// 	do {
-// 		i = (i + (++step)) & mask;
-// 		cur_key = __sync_val_compare_and_swap_kmkey(&(h->bucks[i].idx), TOMB_STONE, key);
-// 	} while (cur_key != TOMB_STONE && cur_key != key && i != last);
-// 	if (cur_key == TOMB_STONE || cur_key == key) {
-// 		if (cur_key == TOMB_STONE) {
-// 			init_bc_bucks(h->bucks + i, h->n_workers);
-// 			__sync_fetch_and_add_kmint(&(h->n_items), 1);
-// 		}
-// 		return i;
-// 	}
-// 	return KMHASH_MAX_SIZE;
-// }
-
-// void *kmresize_worker(void *data)
-// {
-// 	struct kmresize_bundle_t *bundle = (struct kmresize_bundle_t *)data;
-// 	struct kmhash_t *h;
-// 	int j;
-// 	kmint_t i, k, l, r, cap;
-
-// 	h = bundle->h;
-// 	// Init all bucket
-// 	cap = h->size / bundle->n_threads + 1;
-// 	l = cap * bundle->thread_no;
-// 	r = __min(cap * (bundle->thread_no + 1), h->size);
-// 	for (i = l; i < r; ++i) {
-// 		h->bucks[i].idx = TOMB_STONE;
-// 		sem_wrap_init(&(h->bucks[i].bsem), 0);
-// 	}
-
-// 	pthread_barrier_wait(bundle->barrier);
-
-// 	// Fill buckets
-// 	cap = h->old_size / bundle->n_threads + 1;
-// 	l = cap * bundle->thread_no;
-// 	r = __min(cap * (bundle->thread_no + 1), h->old_size);
-// 	for (i = l; i < r; ++i) {
-// 		if (h->old_bucks[i].idx == TOMB_STONE)
-// 			continue;
-// 		k = kmhash_put_bc_no_init(h, h->old_bucks[i].idx);
-// 		if (k == KMHASH_MAX_SIZE)
-// 			__ERROR("Resizing barcodes hash table fail");
-// 		h->bucks[k].umis = h->old_bucks[i].umis;
-// 		for (j = 0; j < bundle->n_threads; ++j)
-// 			sem_wrap_post(&(h->bucks[k].bsem));
-// 		sem_wrap_destroy(&(h->old_bucks[i].bsem));
-// 	}
-
-// 	pthread_exit(NULL);
-// }
 
 void *kmresize_worker(void *data)
 {
@@ -421,7 +209,7 @@ void *kmresize_worker(void *data)
 						h->bucks[j].idx = x;
 						h->bucks[j].umis = y;
 						break;
-					} else if ((current_flag == __sync_val_compare_and_swap8(h->flag +j,
+					} else if ((current_flag = __sync_val_compare_and_swap8(h->flag +j,
 							KMFLAG_EMPTY, KMFLAG_NEW))
 								== KMFLAG_EMPTY) {
 						xt = h->bucks[j].idx;
@@ -856,30 +644,6 @@ static void internal_kmhash_put_umi(struct kmbucket_t *b, kmkey_t umi)
 	pthread_mutex_unlock(&(b->lock));
 }
 
-// static void kmhash_put_umi(struct kmbucket_t *b, kmkey_t umi, int n_threads)
-// {
-// 	struct umi_hash_t *umis;
-// 	kmint_t k;
-// 	umis = b->umis;
-
-// 	sem_wrap_wait(&(b->bsem));
-// 	k = umihash_put_umi(umis, umi);
-// 	sem_wrap_post(&(b->bsem));
-
-// 	if (k == KMHASH_MAX_SIZE) {
-// 		do {
-// 			if (__sync_bool_compare_and_swap32(&(b->umis->status), KMHASH_IDLE, KMHASH_BUSY)) {
-// 				umihash_resize(b, n_threads);
-// 				__sync_val_compare_and_swap32(&(b->umis->status), KMHASH_BUSY, KMHASH_IDLE);
-// 			}
-
-// 			sem_wrap_wait(&(b->bsem));
-// 			k = umihash_put_umi(umis, umi);
-// 			sem_wrap_post(&(b->bsem));
-// 		} while (k == KMHASH_MAX_SIZE);
-// 	}
-// }
-
 void umihash_put_umi_single(struct umi_hash_t *h, kmkey_t key)
 {
 	kmint_t k;
@@ -889,18 +653,6 @@ void umihash_put_umi_single(struct umi_hash_t *h, kmkey_t key)
 		k = internal_umihash_put(h, key);
 	}
 }
-
-// void umihash_put_umi_single(struct umi_hash_t *h, kmkey_t key)
-// {
-// 	kmint_t k;
-// 	k = umihash_put_umi(h, key);
-// 	if (k == KMHASH_MAX_SIZE) {
-// 		umihash_resize_single(h);
-// 		k = umihash_put_umi(h, key);
-// 	}
-// 	if (k == KMHASH_MAX_SIZE)
-// 		__ERROR("Fatal error: unable to resize umi hash");
-// }
 
 void kmhash_put_bc_umi(struct kmhash_t *h, pthread_mutex_t *lock,
 						kmkey_t bc, kmkey_t umi)
@@ -924,32 +676,6 @@ void kmhash_put_bc_umi(struct kmhash_t *h, pthread_mutex_t *lock,
 		pthread_mutex_unlock(lock);
 	}
 }
-
-// void kmhash_put_bc_umi(struct kmhash_t *h, kmkey_t bc, kmkey_t umi)
-// {
-// 	kmint_t k;
-
-// 	sem_wrap_wait(&(h->gsem));
-// 	k = kmhash_put_bc(h, bc);
-// 	if (k < KMHASH_MAX_SIZE)
-// 		kmhash_put_umi(h->bucks + k, umi, h->n_workers);
-// 	sem_wrap_post(&(h->gsem));
-
-// 	if (k == KMHASH_MAX_SIZE) {
-// 		do {
-// 			if (__sync_bool_compare_and_swap32(&(h->status), KMHASH_IDLE, KMHASH_BUSY)) {
-// 				kmhash_resize(h);
-// 				__sync_val_compare_and_swap32(&(h->status), KMHASH_BUSY, KMHASH_IDLE);
-// 			}
-
-// 			sem_wrap_wait(&(h->gsem));
-// 			k = kmhash_put_bc(h, bc);
-// 			if (k < KMHASH_MAX_SIZE)
-// 				kmhash_put_umi(h->bucks + k, umi, h->n_workers);
-// 			sem_wrap_post(&(h->gsem));
-// 		} while (k == KMHASH_MAX_SIZE);
-// 	}
-// }
 
 struct kmhash_t *init_kmhash(kmint_t size, int n_threads)
 {
@@ -992,7 +718,7 @@ void kmhash_destroy(struct kmhash_t *h)
 	free(h->bucks);
 	int k;
 	for (k = 0; k < h->n_workers; ++k)
-		pthread_mutex_detroy(h->locks + k);
+		pthread_mutex_destroy(h->locks + k);
 	free(h->locks);
 	free(h->pos);
 	free(h);
