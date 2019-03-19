@@ -243,6 +243,7 @@ void kmhash_resize_multi(struct kmhash_t *h)
 
 	h->old_size = h->size;
 	h->size <<= 1;
+	h->n_probe = estimate_probe_3(h->size);
 	h->bucks = malloc(h->size * sizeof(struct kmbucket_t));
 	h->flag = calloc(h->size, sizeof(uint8_t));
 
@@ -280,84 +281,6 @@ void kmhash_resize_multi(struct kmhash_t *h)
 	h->flag = NULL;
 }
 
-// void kmhash_resize_multi(struct kmhash_t *h)
-// {
-// 	int n_threads, i;
-// 	n_threads = h->n_workers;
-
-// 	h->old_size = h->size;
-// 	h->old_bucks = h->bucks;
-
-// 	h->size <<= 1;
-// 	h->bucks = malloc(h->size * sizeof(struct kmbucket_t));
-
-// 	h->n_items = 0;
-
-// 	pthread_attr_t attr;
-// 	pthread_attr_init(&attr);
-// 	pthread_attr_setstacksize(&attr, THREAD_STACK_SIZE);
-// 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-
-// 	pthread_t *t;
-// 	t = calloc(h->n_workers, sizeof(pthread_t));
-
-// 	pthread_barrier_t barrier;
-// 	pthread_barrier_init(&barrier, NULL, n_threads);
-
-// 	struct kmresize_bundle_t *bundles;
-// 	bundles = calloc(n_threads, sizeof(struct kmresize_bundle_t));
-
-// 	for (i = 0; i < n_threads; ++i) {
-// 		bundles[i].n_threads = n_threads;
-// 		bundles[i].thread_no = i;
-// 		bundles[i].h = h;
-// 		bundles[i].barrier = &barrier;
-// 		pthread_create(t + i, &attr, kmresize_worker, bundles + i);
-// 	}
-
-// 	for (i = 0; i < n_threads; ++i)
-// 		pthread_join(t[i], NULL);
-
-// 	pthread_attr_destroy(&attr);
-// 	pthread_barrier_destroy(&barrier);
-
-// 	free(t);
-// 	free(bundles);
-// 	free(h->old_bucks);
-// }
-
-// void kmhash_resize_single(struct kmhash_t *h)
-// {
-// 	kmint_t i, k;
-// 	int j;
-
-// 	h->old_size = h->size;
-// 	h->old_bucks = h->bucks;
-
-// 	h->size <<= 1;
-// 	h->bucks = malloc(h->size * sizeof(struct kmbucket_t));
-
-// 	// Initilize new buckets
-// 	h->n_items = 0;
-// 	for (i = 0; i < h->size; ++i) {
-// 		h->bucks[i].idx = TOMB_STONE;
-// 		sem_wrap_init(&(h->bucks[i].bsem), 0);
-// 	}
-
-// 	for (i = 0; i < h->old_size; ++i) {
-// 		if (h->old_bucks[i].idx == TOMB_STONE)
-// 			continue;
-// 		k = kmhash_put_bc_no_init(h, h->old_bucks[i].idx);
-// 		if (k == KMHASH_MAX_SIZE)
-// 			__ERROR("Resizing barcodes hash table fail");
-// 		h->bucks[k].umis = h->old_bucks[i].umis;
-// 		for (j = 0; j < h->n_workers; ++j)
-// 			sem_wrap_post(&(h->bucks[k].bsem));
-// 		sem_wrap_destroy(&(h->old_bucks[i].bsem));
-// 	}
-// 	free(h->old_bucks);
-// }
-
 void kmhash_resize_single(struct kmhash_t *h)
 {
 	kmint_t old_size, mask, i;
@@ -391,7 +314,6 @@ void kmhash_resize_single(struct kmhash_t *h)
 				kmint_t j = k & mask, step = 0;
 				uint8_t current_flag = KMFLAG_NEW;
 				while (step <= h->n_probe) {
-					j = (j + step * (step + 1) / 2) & mask;
 					current_flag = flag[j];
 					if (current_flag == KMFLAG_EMPTY) {
 						flag[j] = KMFLAG_NEW;
@@ -409,6 +331,7 @@ void kmhash_resize_single(struct kmhash_t *h)
 						break;
 					}
 					++step;
+					j = (j + step * (step + 1) / 2) & mask;
 				}
 				if (current_flag == KMFLAG_EMPTY)
 					break;
@@ -438,148 +361,6 @@ void kmhash_resize(struct kmhash_t *h)
 	for (i = 0; i < h->n_workers; ++i)
 		pthread_mutex_unlock(h->locks + i);
 }
-
-// void kmhash_resize(struct kmhash_t *h)
-// {
-// 	int i;
-// 	for (i = 0; i < h->n_workers; ++i)
-// 		sem_wrap_wait(&(h->gsem));
-
-// 	if (h->size == KMHASH_MAX_SIZE)
-// 		__ERROR("The barcodes hash table is too big (exceeded %llu)",
-// 			(unsigned long long)KMHASH_MAX_SIZE);
-
-// 	if (h->size <= KMHASH_SINGLE_RESIZE)
-// 		kmhash_resize_single(h);
-// 	else
-// 		kmhash_resize_multi(h);
-
-// 	for (i = 0; i < h->n_workers; ++i)
-// 		sem_wrap_post(&(h->gsem));
-// }
-
-// void *umiresize_worker(void *data)
-// {
-// 	struct umiresize_bundle_t *bundle = (struct umiresize_bundle_t *)data;
-// 	struct umi_hash_t *h;
-// 	kmint_t i, k, l, r, cap;
-
-// 	h = bundle->h;
-
-// 	// Init new buckets
-// 	cap = h->size / bundle->n_threads + 1;
-// 	l = cap * bundle->thread_no;
-// 	r = __min(cap * (bundle->thread_no + 1), h->size);
-// 	for (i = l; i < r; ++i)
-// 		h->bucks[i] = TOMB_STONE;
-
-// 	pthread_barrier_wait(bundle->barrier);
-
-// 	// Fill new buckets
-// 	cap = h->old_size / bundle->n_threads + 1;
-// 	l = cap * bundle->thread_no;
-// 	r = __min(cap * (bundle->thread_no + 1), h->old_size);
-// 	for (i = l; i < r; ++i) {
-// 		if (h->old_bucks[i] == TOMB_STONE)
-// 			continue;
-// 		k = umihash_put_umi(h, h->old_bucks[i]);
-// 		if (k == KMHASH_MAX_SIZE)
-// 			__ERROR("[Multi] Resizing UMIs hash table fail");
-// 	}
-
-// 	pthread_exit(NULL);
-// }
-
-// void umihash_resize_multi(struct umi_hash_t *h, int n_threads)
-// {
-// 	int i;
-// 	h->old_size = h->size;
-// 	h->old_bucks = h->bucks;
-
-// 	h->size <<= 1;
-// 	h->bucks = malloc(h->size * sizeof(kmkey_t));
-
-// 	h->n_items = 0;
-
-// 	pthread_attr_t attr;
-// 	pthread_attr_init(&attr);
-// 	pthread_attr_setstacksize(&attr, THREAD_STACK_SIZE);
-// 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-
-// 	pthread_t *t;
-// 	t = calloc(n_threads, sizeof(pthread_t));
-
-// 	pthread_barrier_t barrier;
-// 	pthread_barrier_init(&barrier, NULL, n_threads);
-
-// 	struct umiresize_bundle_t *bundles;
-// 	bundles = calloc(n_threads, sizeof(struct umiresize_bundle_t));
-
-// 	for (i = 0; i < n_threads; ++i) {
-// 		bundles[i].n_threads = n_threads;
-// 		bundles[i].thread_no = i;
-// 		bundles[i].h = h;
-// 		bundles[i].barrier = &barrier;
-// 		pthread_create(t + i, &attr, umiresize_worker, bundles + i);
-// 	}
-
-// 	for (i = 0; i < n_threads; ++i)
-// 		pthread_join(t[i], NULL);
-
-// 	pthread_attr_destroy(&attr);
-// 	pthread_barrier_destroy(&barrier);
-
-// 	free(t);
-// 	free(bundles);
-// 	free(h->old_bucks);
-// }
-
-// void umihash_resize_single(struct umi_hash_t *h)
-// {
-// 	kmint_t i, k;
-
-// 	h->old_size = h->size;
-// 	h->old_bucks = h->bucks;
-
-// 	h->size <<= 1;
-// 	h->bucks = malloc(h->size * sizeof(kmkey_t));
-
-// 	// Initilize new buckets
-// 	h->n_items = 0;
-// 	for (i = 0; i < h->size; ++i)
-// 		h->bucks[i] = TOMB_STONE;
-
-// 	for (i = 0; i < h->old_size; ++i) {
-// 		if (h->old_bucks[i] == TOMB_STONE)
-// 			continue;
-// 		k = umihash_put_umi(h, h->old_bucks[i]);
-// 		if (k == KMHASH_MAX_SIZE)
-// 			__ERROR("[Single] Resizing UMIs hash table fail");
-// 	}
-// 	free(h->old_bucks);
-// }
-
-// void umihash_resize(struct kmbucket_t *b, int n_threads)
-// {
-// 	struct umi_hash_t *h;
-// 	int i;
-
-// 	h = b->umis;
-// 	for (i = 0; i < n_threads; ++i)
-// 		sem_wrap_wait(&(b->bsem));
-
-// 	if (h->size == KMHASH_MAX_SIZE)
-// 		__ERROR("The UMIs hash table is too big (exceeded %llu)",
-// 			(unsigned long long)KMHASH_MAX_SIZE);
-
-// 	if (h->size <= KMHASH_SINGLE_RESIZE)
-// 		umihash_resize_single(h);
-// 	else
-// 		umihash_resize_multi(h, n_threads);
-
-// 	for (i = 0; i < n_threads; ++i)
-// 		sem_wrap_post(&(b->bsem));
-// }
 
 static void umihash_resize(struct umi_hash_t *h)
 {
