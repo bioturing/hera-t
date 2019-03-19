@@ -244,7 +244,7 @@ void kmhash_resize_multi(struct kmhash_t *h)
 	h->old_size = h->size;
 	h->size <<= 1;
 	h->n_probe = estimate_probe_3(h->size);
-	h->bucks = malloc(h->size * sizeof(struct kmbucket_t));
+	h->bucks = realloc(h->bucks, h->size * sizeof(struct kmbucket_t));
 	h->flag = calloc(h->size, sizeof(uint8_t));
 
 	pthread_attr_t attr;
