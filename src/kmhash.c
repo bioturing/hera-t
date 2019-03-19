@@ -353,10 +353,13 @@ void kmhash_resize(struct kmhash_t *h)
 		__ERROR("The barcodes hash table is too big (exceeded %llu)",
 			(unsigned long long)KMHASH_MAX_SIZE);
 
+	kmhash_resize_single(h);
+	/*
 	if (h->size <= KMHASH_SINGLE_RESIZE)
 		kmhash_resize_single(h);
 	else
 		kmhash_resize_multi(h);
+	*/
 
 	for (i = 0; i < h->n_workers; ++i)
 		pthread_mutex_unlock(h->locks + i);
