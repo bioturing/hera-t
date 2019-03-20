@@ -159,6 +159,7 @@ void single_cell_process(struct opt_count_t *opt)
 		worker_bundles[i].q = q;
 		worker_bundles[i].bc_table = bc_table;
 		worker_bundles[i].lock_count = &lock_count;
+		worker_bundles[i].lock_hash = bc_table->locks + i;
 		worker_bundles[i].result = &result;
 		worker_bundles[i].lib = opt->lib;
 		if (opt->is_dump_align)
