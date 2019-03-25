@@ -189,7 +189,7 @@ void single_cell_process(struct opt_count_t *opt)
 	for (i = 0; i < opt->n_threads; ++i)
 		pthread_join(worker_threads[i], NULL);
 
-	__VERBOSE("\rNumber of processed reads: %d\n", result.nread);
+	__VERBOSE("\rNumber of processed reads: %ld\n", result.nread);
 
 	destroy_shared_stream(align_fstream, opt->n_threads);
 	free_align_data();
@@ -197,21 +197,21 @@ void single_cell_process(struct opt_count_t *opt)
 
 	// FIXME: Free align data
 
-	check_some_statistics(bc_table);
+	// check_some_statistics(bc_table);
 
 	quantification(opt, bc_table);
 
 	// quantification(opt->out_dir, opt->n_threads);
 
-	__VERBOSE_LOG("INFO", "Total number of reads             : %10u\n", result.nread);
-	__VERBOSE_LOG("INFO", "Number of exonic mapped reads       : %10u\n", result.exon);
+	__VERBOSE_LOG("INFO", "Total number of reads               : %10ld\n", result.nread);
+	__VERBOSE_LOG("INFO", "Number of exonic mapped reads       : %10ld\n", result.exon);
 	if (opt->count_intron){
-		__VERBOSE_LOG("INFO", "Number of intronic reads   : %10u\n", result.intron);
-		__VERBOSE_LOG("INFO", "Number of intergenic reads   : %10u\n", result.intergenic);
+		__VERBOSE_LOG("INFO", "Number of intronic reads            : %10ld\n", result.intron);
+		__VERBOSE_LOG("INFO", "Number of intergenic reads          : %10ld\n", result.intergenic);
 	} else {
-		__VERBOSE_LOG("INFO", "Number of nonexonic reads   : %10u\n", result.intergenic);
+		__VERBOSE_LOG("INFO", "Number of nonexonic reads           : %10ld\n", result.intergenic);
 	}
-	__VERBOSE_LOG("INFO", "Number of unmapped reads   : %10u\n", result.unmap);
+	__VERBOSE_LOG("INFO", "Number of unmapped reads            : %10ld\n", result.unmap);
 }
 
 void *align_worker(void *data)
@@ -362,7 +362,7 @@ void update_result(struct align_stat_t *res, struct align_stat_t *add)
 	res->unmap	+= add->unmap;
 	res->intron     += add->intron;
 	res->intergenic += add->intergenic;
-	__VERBOSE("\rNumber of processed reads: %d", res->nread);
+	__VERBOSE("\rNumber of processed reads: %ld", res->nread);
 }
 
 void init_bwt(const char *path, int32_t count_intron)

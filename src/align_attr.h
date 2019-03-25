@@ -22,11 +22,11 @@ struct seed_t {
 };
 
 struct align_stat_t {
-	int nread;
-	int exon;
-	int unmap;
-	int intron;
-	int intergenic;
+	int64_t nread;
+	int64_t exon;
+	int64_t unmap;
+	int64_t intron;
+	int64_t intergenic;
 };
 
 struct align_t {
