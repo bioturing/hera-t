@@ -137,8 +137,14 @@ struct array_2D_t {
 };
 
 struct producer_bundle_t {
+	int n_producer;
+	int n_files;
+	int thread_no;
+	void *streams;
+	char **left_file;
+	char **right_file;
 	int *n_consumer;
-	void *stream;
+	// void *stream;
 	pthread_barrier_t *barrier;
 	pthread_mutex_t *lock;
 	struct dqueue_t *q;

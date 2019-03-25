@@ -28,6 +28,9 @@ struct opt_count_t {
 	struct library_t lib;
 };
 
+
+void print_info();
+
 void print_usage();
 
 struct opt_index_t *get_opt_index(int argc, char *argv[]);
