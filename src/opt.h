@@ -28,7 +28,6 @@ struct opt_count_t {
 	struct library_t lib;
 };
 
-
 void print_info();
 
 void print_usage();
