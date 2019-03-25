@@ -4,17 +4,17 @@
 #include "io_utils.h"
 
 struct content_t {
-        char *s;
-        int l;
+	char *s;
+	int l;
 };
 
 struct tsv_t {
-        FILE *f;
-        char *buf;
+	FILE *f;
+	char *buf;
 
-        int *row_content;
-        int l;
-        int m;
+	int *row_content;
+	int l;
+	int m;
 };
 
 struct tsv_t *init_readTSV(const char *path);

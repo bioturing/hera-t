@@ -7,7 +7,7 @@
 // protocol index
 #define CHROMIUM3_V2		0
 #define CHROMIUM3_V3		1
-#define CELSEE			1
+#define CELSEE			2
 
 struct library_t {
 	int16_t bc_len;
