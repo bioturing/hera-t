@@ -122,7 +122,7 @@ void single_cell_process(struct opt_count_t *opt)
 	pthread_barrier_t producer_barrier;
 
 	pthread_mutex_init(&producer_lock, NULL);
-	pthread_barrier_init(&producer_barrier, NULL, opt->n_files);
+	pthread_barrier_init(&producer_barrier, NULL, n_producer);
 
 	struct gb_pair_data *input_streams = calloc(opt->n_files,
 						sizeof(struct gb_pair_data));
