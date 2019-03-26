@@ -128,7 +128,7 @@ void single_cell_process(struct opt_count_t *opt)
 						sizeof(struct gb_pair_data));
 
 	int i;
-	for (i = 0; i < opt->n_files; ++i) {
+	for (i = 0; i < n_producer; ++i) {
 		// struct gb_pair_data *data = calloc(1, sizeof(struct gb_pair_data));
 		// gb_pair_init(data, opt->left_file[i], opt->right_file[i]);
 
