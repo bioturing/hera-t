@@ -183,7 +183,7 @@ void single_cell_process(struct opt_count_t *opt)
 		pthread_create(worker_threads + i, &attr, align_worker, worker_bundles + i);
 	}
 
-	for (i = 0; i < opt->n_files; ++i)
+	for (i = 0; i < n_producer; ++i)
 		pthread_join(producer_threads[i], NULL);
 
 	for (i = 0; i < opt->n_threads; ++i)
