@@ -75,4 +75,6 @@ kmint_t kmhash_get(struct kmhash_t *h, kmkey_t key);
 
 kmint_t umihash_get(struct umi_hash_t *h, kmkey_t key);
 
+void umihash_destroy(struct umi_hash_t *h);
+
 #endif

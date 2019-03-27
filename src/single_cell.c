@@ -31,7 +31,7 @@ void single_cell_process(struct opt_count_t *opt);
 
 void *align_worker(void *data);
 
-void *producer_worker(void *data);
+void *pair_producer_worker(void *data);
 
 void update_result(struct align_stat_t *res, struct align_stat_t *add);
 
@@ -106,32 +106,46 @@ void single_cell_process(struct opt_count_t *opt)
 
 	struct dqueue_t *q;
 	q = init_dqueue_PE(opt->n_threads * 2); // must always >= n_thread * 2 in order to avoid deadlock
-	int n_consumer;
+	int n_consumer, n_producer;
 	n_consumer = opt->n_threads * 2;
 
 	struct producer_bundle_t *producer_bundles;
 	pthread_t *producer_threads;
 
-	producer_bundles = malloc(opt->n_files * sizeof(struct producer_bundle_t));
-	producer_threads = calloc(opt->n_files, sizeof(pthread_t));
+	n_producer = __min(opt->n_files, opt->n_threads);
+	// producer_bundles = malloc(opt->n_files * sizeof(struct producer_bundle_t));
+	// producer_threads = calloc(opt->n_files, sizeof(pthread_t));
+	producer_bundles = malloc(n_producer * sizeof(struct producer_bundle_t));
+	producer_threads = calloc(n_producer, sizeof(pthread_t));
 
 	pthread_mutex_t producer_lock;
 	pthread_barrier_t producer_barrier;
 
 	pthread_mutex_init(&producer_lock, NULL);
-	pthread_barrier_init(&producer_barrier, NULL, opt->n_files);
+	pthread_barrier_init(&producer_barrier, NULL, n_producer);
+
+	struct gb_pair_data *input_streams = calloc(opt->n_files,
+						sizeof(struct gb_pair_data));
 
 	int i;
-	for (i = 0; i < opt->n_files; ++i) {
-		struct gb_pair_data *data = calloc(1, sizeof(struct gb_pair_data));
-		gb_pair_init(data, opt->left_file[i], opt->right_file[i]);
+	for (i = 0; i < n_producer; ++i) {
+		// struct gb_pair_data *data = calloc(1, sizeof(struct gb_pair_data));
+		// gb_pair_init(data, opt->left_file[i], opt->right_file[i]);
+
+		producer_bundles[i].streams = input_streams;
+		producer_bundles[i].n_producer = n_producer;
+		producer_bundles[i].thread_no = i;
+		producer_bundles[i].n_files = opt->n_files;
+		producer_bundles[i].left_file = opt->left_file;
+		producer_bundles[i].right_file = opt->right_file;
 
 		producer_bundles[i].n_consumer = &n_consumer;
-		producer_bundles[i].stream = (void *)data;
+		// producer_bundles[i].stream = (void *)data;
 		producer_bundles[i].q = q;
 		producer_bundles[i].barrier = &producer_barrier;
 		producer_bundles[i].lock = &producer_lock;
-		pthread_create(producer_threads + i, &attr, producer_worker, producer_bundles + i);
+		pthread_create(producer_threads + i, &attr,
+				pair_producer_worker, producer_bundles + i);
 	}
 
 	struct worker_bundle_t *worker_bundles;
@@ -169,13 +183,13 @@ void single_cell_process(struct opt_count_t *opt)
 		pthread_create(worker_threads + i, &attr, align_worker, worker_bundles + i);
 	}
 
-	for (i = 0; i < opt->n_files; ++i)
+	for (i = 0; i < n_producer; ++i)
 		pthread_join(producer_threads[i], NULL);
 
 	for (i = 0; i < opt->n_threads; ++i)
 		pthread_join(worker_threads[i], NULL);
 
-	__VERBOSE("\rNumber of processed reads: %d\n", result.nread);
+	__VERBOSE("\rNumber of processed reads: %ld\n", result.nread);
 
 	destroy_shared_stream(align_fstream, opt->n_threads);
 	free_align_data();
@@ -183,21 +197,21 @@ void single_cell_process(struct opt_count_t *opt)
 
 	// FIXME: Free align data
 
-	check_some_statistics(bc_table);
+	// check_some_statistics(bc_table);
 
 	quantification(opt, bc_table);
 
 	// quantification(opt->out_dir, opt->n_threads);
 
-	__VERBOSE_LOG("INFO", "Total number of reads             : %10u\n", result.nread);
-	__VERBOSE_LOG("INFO", "Number of exonic mapped reads       : %10u\n", result.exon);
+	__VERBOSE_LOG("INFO", "Total number of reads               : %10ld\n", result.nread);
+	__VERBOSE_LOG("INFO", "Number of exonic mapped reads       : %10ld\n", result.exon);
 	if (opt->count_intron){
-		__VERBOSE_LOG("INFO", "Number of intronic reads   : %10u\n", result.intron);
-		__VERBOSE_LOG("INFO", "Number of intergenic reads   : %10u\n", result.intergenic);
+		__VERBOSE_LOG("INFO", "Number of intronic reads            : %10ld\n", result.intron);
+		__VERBOSE_LOG("INFO", "Number of intergenic reads          : %10ld\n", result.intergenic);
 	} else {
-		__VERBOSE_LOG("INFO", "Number of nonexonic reads   : %10u\n", result.intergenic);
+		__VERBOSE_LOG("INFO", "Number of nonexonic reads           : %10ld\n", result.intergenic);
 	}
-	__VERBOSE_LOG("INFO", "Number of unmapped reads   : %10u\n", result.unmap);
+	__VERBOSE_LOG("INFO", "Number of unmapped reads            : %10ld\n", result.unmap);
 }
 
 void *align_worker(void *data)
@@ -261,28 +275,38 @@ void *align_worker(void *data)
 	pthread_exit(NULL);
 }
 
-void *producer_worker(void *data)
+void *pair_producer_worker(void *data)
 {
 	struct producer_bundle_t *bundle = (struct producer_bundle_t *)data;
 	struct dqueue_t *q = bundle->q;
-	struct gb_pair_data *input_stream = bundle->stream;
 	struct pair_buffer_t *own_buf = init_pair_buffer();
 	struct pair_buffer_t *external_buf;
+	struct gb_pair_data *streams, *stream;
+	streams = (struct gb_pair_data *)bundle->streams;
+	int i, thread_no, n_files, n_producer;
 	int64_t offset;
-
-	while ((offset = gb_get_pair(input_stream, &own_buf->buf1, &own_buf->buf2)) != -1) {
-		own_buf->input_format = input_stream->type;
-		external_buf = d_dequeue_out(q);
-		d_enqueue_in(q, own_buf);
-		own_buf = external_buf;
+	char **left_file, **right_file;
+	left_file = bundle->left_file;
+	right_file = bundle->right_file;
+	thread_no = bundle->thread_no;
+	n_files = bundle->n_files;
+	n_producer = bundle->n_producer;
+	for (i = thread_no; i < n_files; i += n_producer) {
+		stream = streams + i;
+		gb_pair_init(stream, left_file[i], right_file[i]);
+		while ((offset = gb_get_pair(stream, &own_buf->buf1, &own_buf->buf2)) != -1) {
+			own_buf->input_format = stream->type;
+			external_buf = d_dequeue_out(q);
+			d_enqueue_in(q, own_buf);
+			own_buf = external_buf;
+		}
 	}
 	free_pair_buffer(own_buf);
 
-	int cur;
 	pthread_barrier_wait(bundle->barrier);
 	while (1) {
 		pthread_mutex_lock(bundle->lock);
-		cur = *(bundle->n_consumer);
+		int cur = *(bundle->n_consumer);
 		if (*(bundle->n_consumer) > 0)
 			--*(bundle->n_consumer);
 		pthread_mutex_unlock(bundle->lock);
@@ -296,6 +320,41 @@ void *producer_worker(void *data)
 	pthread_exit(NULL);
 }
 
+// void *producer_worker(void *data)
+// {
+// 	struct producer_bundle_t *bundle = (struct producer_bundle_t *)data;
+// 	struct dqueue_t *q = bundle->q;
+// 	struct gb_pair_data *input_stream = bundle->stream;
+// 	struct pair_buffer_t *own_buf = init_pair_buffer();
+// 	struct pair_buffer_t *external_buf;
+// 	int64_t offset;
+
+// 	while ((offset = gb_get_pair(input_stream, &own_buf->buf1, &own_buf->buf2)) != -1) {
+// 		own_buf->input_format = input_stream->type;
+// 		external_buf = d_dequeue_out(q);
+// 		d_enqueue_in(q, own_buf);
+// 		own_buf = external_buf;
+// 	}
+// 	free_pair_buffer(own_buf);
+
+// 	int cur;
+// 	pthread_barrier_wait(bundle->barrier);
+// 	while (1) {
+// 		pthread_mutex_lock(bundle->lock);
+// 		cur = *(bundle->n_consumer);
+// 		if (*(bundle->n_consumer) > 0)
+// 			--*(bundle->n_consumer);
+// 		pthread_mutex_unlock(bundle->lock);
+// 		if (cur == 0)
+// 			break;
+// 		external_buf = d_dequeue_out(q);
+// 		free_pair_buffer(external_buf);
+// 		d_enqueue_in(q, NULL);
+// 	}
+
+// 	pthread_exit(NULL);
+// }
+
 void update_result(struct align_stat_t *res, struct align_stat_t *add)
 {
 	res->nread	+= add->nread;
@@ -303,7 +362,7 @@ void update_result(struct align_stat_t *res, struct align_stat_t *add)
 	res->unmap	+= add->unmap;
 	res->intron     += add->intron;
 	res->intergenic += add->intergenic;
-	__VERBOSE("\rNumber of processed reads: %d", res->nread);
+	__VERBOSE("\rNumber of processed reads: %ld", res->nread);
 }
 
 void init_bwt(const char *path, int32_t count_intron)

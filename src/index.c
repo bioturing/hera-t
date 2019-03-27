@@ -513,7 +513,7 @@ void build_transcript(const char *path)
 			for (j = n - 1; j >= 0; --j) {
 				for (kb = trans->exons[i][j].end; kb >= trans->exons[i][j].beg; --kb) {
 					c = genome->seq[chr_idx][kb - 1];
-					seq[len++] = rev_nt4_char[(int)nt4_table[c]];
+					seq[len++] = rev_nt4_char[nt4_table[(int)c]];
 				}
 			}
 		}

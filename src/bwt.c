@@ -191,7 +191,7 @@ uint8_t *add_seq(kseq_t *seq, uint8_t *pac, bioint_t *l_pac, uint64_t *m_pac)
 	int i, c;
 	bioint_t l = *l_pac;
 	uint64_t m = *m_pac;
-	for (i = 0; i < seq->seq.l; ++i) {
+	for (i = 0; i < (int)seq->seq.l; ++i) {
 		c = nt4_table[(int)seq->seq.s[i]];
 		if (c >= 4)
 #ifndef _MSC_VER

@@ -26,9 +26,9 @@ struct gn_seed_t {
 
 static int k_spl = 13;
 static int k_gn = 19;
-static int k_ext = 39;
+// static int k_ext = 39;
 static int max_occ = 5000;
-static int max_check_len = 100000;
+// static int max_check_len = 100000;
 static int intron = 0;
 
 static int err_sub[5][5] = {

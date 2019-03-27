@@ -1,11 +1,14 @@
 CC = gcc
 
+CPP = cpp
+
 AR = ar
 
 LIBS = -pthread -flto -lm local/lib/libz.a local/lib/libdivsufsort64.a
 #-fsanitize=undefined,address
 
-CFLAGS = -Wfatal-errors -Wextra -Wall -fPIC -std=gnu99 -O2 -Ilocal/include/ -Isrc/ -g
+CFLAGS = -Wfatal-errors -Wextra -Wall -fPIC -std=gnu99 -O2 -Ilocal/include/ -Isrc/
+#-g
 
 EXEC = hera-T
 
@@ -29,8 +32,36 @@ SRC = src/alignment.c 				\
       src/library_type.c 			\
       src/main.c
 
-all:
-	$(CC) -o $(EXEC) $(CFLAGS) $(SRC) $(LIBS)
+OBJ = $(SRC:.c=.o)
 
+DEP = $(OBJ:.o=.d)
+
+.PHONY: all
+all: $(EXEC)
+
+.PHONY: debug
+debug: LIBS += -fsanitize=undefined,address
+debug: CFLAGS += -g
+debug: cleanall
+debug: $(EXEC)
+
+$(EXEC): $(OBJ)
+	$(CC) -o $@ $^ $(LIBS)
+
+-include $(DEP)
+
+%.d: %.c
+	@$(CPP) $(CFLAGS) $< -MM -MT $(@:.d=.o) >$@
+
+.PHONY: clean
 clean:
-	rm -f $(EXEC)
+	rm -rf $(OBJ) $(EXEC)
+
+.PHONY: cleandep
+cleandep:
+	rm -f $(DEP)
+
+.PHONY: cleanall
+cleanall:
+	rm -rf $(OBJ) $(EXEC) $(DEP)
+
