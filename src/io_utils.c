@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #if defined(_MSC_VER)
 #include <time.h>
@@ -11,8 +13,6 @@
 #include <unistd.h>
 #include <sys/resource.h>
 #include <sys/time.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #endif /* _MSC_VER */
 
 #include "io_utils.h"
@@ -87,8 +87,13 @@ void normalize_dir(char *path)
 
 void make_dir(const char *path)
 {
+#ifdef _MSC_VER
+	struct _stat st = {0};
+	if (_stat(path, &st) == -1) {
+#else
 	struct stat st = {0};
 	if (stat(path, &st) == -1) {
+#endif
 		if (mkdir(path, 0700)) {
 			perror("Could not make output directory");
 			exit(EXIT_FAILURE);
