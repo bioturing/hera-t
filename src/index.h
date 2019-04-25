@@ -4,6 +4,6 @@
 #include "bwt.h"
 #include "interval_tree.h"
 
-void build_index(int pos, int argc, char **argv);
+void build_index(int argc, char **argv);
 
 #endif

@@ -2,7 +2,7 @@
 #define _DYNAMIC_ALIGNMENT_H_
 
 #include "attribute.h"
-#include "utils.h"
+#include "bundles.h"
 
 #define SUB_MAX		1
 #define SUB_MIN		-2

@@ -623,11 +623,11 @@ void free_info()
 	//  TODO: free info before build hash
 }
 
-void build_index(int pos, int argc, char **argv)
+void build_index(int argc, char **argv)
 {
 	char str_dir[1024];
 	char idx_name[1024];
-	struct opt_index_t *opts = get_opt_index(argc - pos, argv + pos);
+	struct opt_index_t *opts = get_opt_index(argc, argv);
 	strcpy(idx_name, opts->idx_dir); strcat(idx_name, "/");
 	strcat(idx_name, opts->prefix);
 	// idx_name = str_concate(opts->idx_dir, opts->prefix);

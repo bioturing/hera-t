@@ -8,8 +8,6 @@
 #include "dynamic_alignment.h"
 #include "genome.h"
 #include "hash_table.h"
-#include "io_utils.h"
-#include "barcode.h"
 #include "radix_sort.h"
 #include "verbose.h"
 
@@ -53,8 +51,6 @@ static inline uint64_t get_index_cons(const char *seq)
 	uint8_t c;
 	for (i = 0; i < kcons; ++i) {
 		c = nt4_table[(int)seq[i]];
-		// if (c >= 4)
-		// 	c = lrand48() & 3;
 		if (c > 3)
 			return (uint64_t)(-1);
 		ret = (ret << 2) | c;
@@ -77,7 +73,6 @@ void get_cons_seed(struct read_t *read, struct seed_t *rs, int step)
 	}
 
 	for (i = 0; i < n; ++i) {
-		// s = i * seed_info->step;
 		s = i * step;
 		rs->offset[i] = s;
 
@@ -117,7 +112,7 @@ void find_cons_seeds(struct read_t *read, struct seed_t *ret)
 		ret->n_seed = 2;
 		step = read->len - kcons;
 	}
-	// ret->scons = malloc(ret->ncons * sizeof(struct hit_t));
+
 	get_cons_seed(read, ret, step);
 }
 
@@ -449,7 +444,7 @@ void semi_indel_map(char *seq, int len, struct recycle_alg_t *seed,
 }
 
 void get_perfect_map(struct read_t *read, struct seed_t *s,
-		     struct worker_bundle_t *bundle)
+		     struct bundle_data_t *bundle)
 {
 	int n, i, k, cs, n_seed;
 	int max_score, partial_score;
@@ -476,7 +471,7 @@ void get_perfect_map(struct read_t *read, struct seed_t *s,
 }
 
 void get_perfect_map_alt(struct read_t *read, struct seed_t *s,
-			 struct worker_bundle_t *bundle)
+			 struct bundle_data_t *bundle)
 {
 	int n, i, k, cs, n_seed;
 	int max_score, max_err, partial_score, clip;
@@ -505,7 +500,7 @@ void get_perfect_map_alt(struct read_t *read, struct seed_t *s,
 }
 
 void get_linear_map(struct read_t *read, struct seed_t *s, int min_s, int max_s,
-			struct worker_bundle_t *bundle)
+			struct bundle_data_t *bundle)
 {
 	int n, i, k, cs;
 	int max_score, max_err, partial_score, clip;
@@ -532,7 +527,7 @@ void get_linear_map(struct read_t *read, struct seed_t *s, int min_s, int max_s,
 	}
 }
 
-int check_linear_map(struct read_t *read, struct worker_bundle_t *bundle)
+int check_linear_map(struct read_t *read, struct bundle_data_t *bundle)
 {
 	int err, max_err, max_score;
 	struct raw_alg_t *algs;
@@ -563,7 +558,7 @@ genome_check:
 	return genome_map_err(read, __min(max_err, err), bundle);
 }
 
-int check_indel_map(struct read_t *read, struct worker_bundle_t *bundle)
+int check_indel_map(struct read_t *read, struct bundle_data_t *bundle)
 {
 	int max_err = read->len * ERROR_RATIO;
 
@@ -596,12 +591,9 @@ int check_indel_map(struct read_t *read, struct worker_bundle_t *bundle)
 	return genome_map_err(read, err, bundle);
 }
 
-void store_read_chromium(struct read_t *r, struct raw_alg_t *alg,
-			struct kmhash_t *bc_table, pthread_mutex_t *lock_hash,
-			struct library_t lib)
+int get_ref_idx(struct raw_alg_t *alg)
 {
 	int i, g, gene;
-	uint64_t bc_idx, umi_gene_idx;
 
 	gene = -1;
 	for (i = 0; i < alg->n; ++i) {
@@ -616,114 +608,38 @@ void store_read_chromium(struct read_t *r, struct raw_alg_t *alg,
 			break;
 		}
 	}
-	if (gene == -1)
-		return;
-	bc_idx = umi_gene_idx = 0;
-	for (i = 0; i < lib.bc_len; ++i)
-		bc_idx = bc_idx * 5 + nt4_table[(int)r->seq[i]];
-	for (i = 0; i < lib.umi_len; ++i)
-		umi_gene_idx = umi_gene_idx * 5 + nt4_table[(int)r->seq[lib.bc_len + i]];
-	umi_gene_idx = umi_gene_idx << GENE_BIT_LEN | gene;
-	kmhash_put_bc_umi(bc_table, lock_hash, bc_idx, umi_gene_idx);
+
+	return gene;
 }
 
-/*
-void store_exon(struct read_t *read1, struct raw_alg_t *alg)
+int align_chromium_read(struct read_t *read, struct bundle_data_t *bundle,
+			struct align_stat_t *count)
 {
-	int32_t i, gene, t, stat;
-	int64_t bc_id;
-
-	idx = seq2num(read1->seq, read1->len);
-	gene = -1;
-	for (i = 0; i < alg->n; ++i) {
-		t = alg->cands[i].pos;
-		if (gene == -1)
-			gene = trans.gene_idx[trans.idx[t]];
-		else if (gene != trans.gene_idx[trans.idx[t]])
-			break;
-	}
-	
-	if (i != alg->n)
-		return;
-	
-	// add_bc_umi(idx, gene);
-}
-
-void store_intron(struct read_t *read1, struct interval_t *intron)
-{
-	if (intron->n != 1)
-		return;
-	
-	// add_bc_umi(seq2num(read1->seq, read1->len), intron->id[0]);
-}
-*/
-
-void write_aligns(struct shared_fstream_t *fstream, struct read_t *r1,
-		  struct read_t *r2, struct raw_alg_t *a)
-{
-	if (!fstream) return;
-	extern struct transcript_info_t trans;
-	extern struct gene_info_t genes;
-	int l, alg_len, rem_buf, i, tid, gid;
-	l = fstream->buf_len;
-	rem_buf = SFS_BUF_SZ - l;
-		 /* r1->name       + "\t" */
-	alg_len = strlen(r1->name) + 1    + a->n * (genes.l_id + trans.l_id + 10 + 3);
-	if (alg_len > rem_buf) { // not enough expected buffer
-		sfs_flush(fstream);
-		rem_buf = SFS_BUF_SZ;
-		l = 0;
-	}
-	if (rem_buf < alg_len)
-		__ERROR("Wrtting alignments: insufficient amount of buffer, please report to us.");
-	l += sprintf(fstream->buf + l, "%s", r1->name);
-	for (i = 0; i < a->n; ++i) {
-		tid = trans.idx[a->cands[i].pos];
-		gid = trans.gene_idx[tid];
-		l += sprintf(fstream->buf + l, "\t%s\t%s\t%d\t%d",
-				trans.tran_id + tid * trans.l_id,
-				genes.gene_id + gid * genes.l_id,
-				a->cands[i].pos - trans.tran_beg[tid],
-				a->cands[i].score);
-	}
-	fstream->buf[l++] = '\n';
-	fstream->buf_len = l;
-}
-
-void align_chromium_read(struct read_t *read1, struct read_t *read2,
-			 struct worker_bundle_t *bundle)
-{
-	if (!read1->name || !read1->seq || !read2->name || !read2->seq)
-		return;
-
-	int r1_len = bundle->lib.bc_len + bundle->lib.umi_len;
-	if (read1->len != r1_len)
-		__ERROR("Read lenght of %s is not consistent with library type.\n Expect %u.\n Receive %u.\n", read1->name, r1_len, read1->len);
-
-	++bundle->result->nread;
-	reinit_bundle(bundle);
-
 	int ret;
 	struct seed_t *s_cons;
 
+	++count->nread;
+
 	s_cons = bundle->seed_cons;
-	find_cons_seeds(read2, s_cons);
+	find_cons_seeds(read, s_cons);
 	merge_seed(s_cons);
 
-	ret = check_linear_map(read2, bundle);
+	ret = check_linear_map(read, bundle);
 	if (ret == 0)
-		ret = check_indel_map(read2, bundle);
+		ret = check_indel_map(read, bundle);
 
-	if (ret == 1){
-		store_read_chromium(read1, bundle->alg_array, bundle->bc_table,
-					bundle->lock_hash, bundle->lib);
-		// store_exon(read1, bundle->alg_array);
-		++bundle->result->exon;
+	if (ret == 1) {
+		++count->exon;
+		//store_exon(read1, bundle->alg_array);
+		return get_ref_idx(bundle->alg_array);
 	} else if (ret == 2) {
 		// store_intron(read1, bundle->intron_array);
-		++bundle->result->intron;
-	} else if (ret == 3) 
-		++bundle->result->intergenic;
-	else
-		++bundle->result->unmap;
+		++count->intron;
+	} else if (ret == 3) {
+		++count->intergenic;
+	} else {
+		++count->unmap;
+	}
+
+	return -1;
 }

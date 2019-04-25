@@ -111,8 +111,8 @@ void destroy_2D(int **a, int m)
 }
 
 int align_banded_fw(const char *ref, const char *seq, int lref, int lseq,
-			int width, int drop, int max_err, struct array_2D_t *tmp_array,
-			struct extend_align_t *ret)
+		int width, int drop, int max_err, struct array_2D_t *tmp_array,
+		struct extend_align_t *ret)
 {
 	assert(lref >= 0 && lseq >= 0);
 	if (!lref || !lseq) {

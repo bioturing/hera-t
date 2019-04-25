@@ -122,68 +122,11 @@ int64_t seq2num(const char *seq, int len);
 
 /* convert from number to [ACGTN]+ to number */
 char *num2seq(int64_t num, int len);
-/*
- * Global variable
- */
+
+/* concat two strings */
+void concat_str(char *s1, int l1, char *s2, int l2);
 
 extern int8_t nt4_table[256];
 extern char *nt4_char, *rev_nt4_char;
-
-struct array_2D_t {
-	void *data;
-	int len;
-	int nrow;
-	void **rows;
-};
-
-struct producer_bundle_t {
-	int n_producer;
-	int n_files;
-	int thread_no;
-	void *streams;
-	char **left_file;
-	char **right_file;
-	int *n_consumer;
-	// void *stream;
-	pthread_barrier_t *barrier;
-	pthread_mutex_t *lock;
-	struct dqueue_t *q;
-};
-
-struct worker_bundle_t {
-	struct dqueue_t *q;
-	struct kmhash_t *bc_table;
-	pthread_mutex_t *lock_count;
-	pthread_mutex_t *lock_hash;
-	struct align_stat_t *result;
-	struct raw_alg_t *alg_array;
-	struct interval_t *intron_array;
-	struct recycle_bin_t *recycle_bin;
-	struct seed_t *seed_cons;
-	struct array_2D_t *tmp_array;
-	// struct stream_t *unmap_st;
-	struct shared_fstream_t *align_fstream;
-	struct library_t lib;
-};
-
-struct pair_buffer_t {
-	char *buf1;
-	char *buf2;
-	int input_format;
-};
-
-struct dqueue_t *init_dqueue_PE(int cap);
-
-struct pair_buffer_t *init_pair_buffer();
-
-void free_pair_buffer(struct pair_buffer_t *p);
-
-void **resize_array_2D(struct array_2D_t *p, int nrow, int ncol, int word);
-
-void init_bundle(struct worker_bundle_t *bundle);
-
-void destroy_bundle(struct worker_bundle_t *bundle);
-
-void reinit_bundle(struct worker_bundle_t *bundle);
 
 #endif /* _UTILS_H_ */

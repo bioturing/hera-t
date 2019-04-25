@@ -157,7 +157,7 @@ struct gn_anchor_t *get_anchor(struct gn_seed_t *se, int m, int *n)
 }
 
 /*int count_intron(struct gn_anchor_t *s, int n, const char *seq, int len,
-		int max_err, struct worker_bundle_t *bundle, char r_str)
+		int max_err, struct bundle_data_t *bundle, char r_str)
 {
 	int i, k, min_len, err, s_len, l, max;
 #ifdef _MSC_VER
@@ -219,7 +219,7 @@ int check_genome(struct gn_anchor_t *s, int n, const char *seq,
 }
 
 int get_align_genome(const char *seq, int len, int max_err,
-		     struct worker_bundle_t *bundle, char r_str)
+		     struct bundle_data_t *bundle, char r_str)
 {
 	extern struct bwt_t bwt;
 	bioint_t l, r, o_l, o_r;
@@ -297,7 +297,7 @@ done:
 }
 
 int genome_map_err(struct read_t *read, int max_err,
-		   struct worker_bundle_t *bundle)
+		   struct bundle_data_t *bundle)
 {
 	if (!intron && max_err < 0)
 		return 0;
