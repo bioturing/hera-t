@@ -226,8 +226,6 @@ void tag_work(struct worker_data_t worker_data)
 
 	for (i = 0; i < n_threads; ++i)
 		pthread_join(worker_threads[i], NULL);
-
-	destroy_tag_threads();
 }
 
 void process_tag(struct opt_count_t *opt, struct input_t *input,
@@ -249,9 +247,9 @@ void process_tag(struct opt_count_t *opt, struct input_t *input,
 void single_cell(int argc, char *argv[])
 {
 	struct opt_count_t *opt = get_opt_count(argc, argv);
-	char log_path[strlen(opt->out_dir) + 4];
+	char log_path[strlen(opt->out_dir) + 10];
 	strcpy(log_path, opt->out_dir);
-	strcat(log_path, ".log");
+	strcat(log_path, "/run.log");
 	init_log(log_path);
 
 	log_write("VERSION: %d.%d\n", PROG_VERSION_MAJOR, PROG_VERSION_MINOR);

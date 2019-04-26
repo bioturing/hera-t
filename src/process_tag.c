@@ -42,7 +42,7 @@ int check_left_pattern(struct read_t *read, int start, char *pattern, int l)
 
 	for (i = start; i < max_iter; ++i) {
 		for (k = error = 0; k < l && error <= MAX_ERROR; ++k)
-			if (nt4_table[read->seq[i + k]] != nt4_table[pattern[k]])
+			if (nt4_table[(int)read->seq[i + k]] != nt4_table[(int)pattern[k]])
 				++error;
 		if (k == l)
 			return start + l;
@@ -63,7 +63,7 @@ int check_right_pattern(struct read_t *read, int start, char *pattern, int l)
 
 	for (i = start; i < max_iter; ++i) {
 		for (k = error = 0; k < l && error <= MAX_ERROR; ++k)
-			if (nt4_table[read->seq[i + k]] != nt4_table[pattern[k]])
+			if (nt4_table[(int)read->seq[i + k]] != nt4_table[(int)pattern[k]])
 				++error;
 		if (k == l)
 			return i - tag_ref->ref_len;
@@ -274,16 +274,11 @@ void build_tag_ref(struct input_t *input, struct ref_info_t *ref, int type)
 *                 MAP TAGS               *
 *****************************************/
 
-struct tag_stat_t *count;
+struct tag_stat_t *tag_count;
 
 void init_tag_threads(int n_threads)
 {
-	count = calloc(n_threads + 1, sizeof(struct tag_stat_t));
-}
-
-void destroy_tag_threads()
-{
-	free(count);
+	tag_count = calloc(n_threads + 1, sizeof(struct tag_stat_t));
 }
 
 int32_t get_tag_idx(struct read_t *read)
@@ -307,7 +302,7 @@ int32_t get_tag_idx(struct read_t *read)
 
 int align_tag(struct read_t *read, int thread_num)
 {
-	struct tag_stat_t *c = count + (thread_num + 1);
+	struct tag_stat_t *c = tag_count + (thread_num + 1);
 
 	int32_t tag_idx;
 	khiter_t k;
@@ -336,26 +331,27 @@ void update_tag_result(struct tag_stat_t *res, struct tag_stat_t *add)
 
 void print_tag_count(int thread_num)
 {
-	struct tag_stat_t *c = count + (thread_num + 1);
-	update_tag_result(count, c);
+	struct tag_stat_t *c = tag_count + (thread_num + 1);
+	update_tag_result(tag_count, c);
 	memset(c, 0, sizeof(struct tag_stat_t));
-	__VERBOSE("\r Mapped reads: %ld / %ld", count[0].map, count[0].nread);
+	__VERBOSE("\r Mapped reads: %ld / %ld",
+			 tag_count[0].map, tag_count[0].nread);
 }
 
 void print_tag_stat(int n_threads)
 {
 	int i;
 	for (i = 1; i <= n_threads; ++i)
-		update_tag_result(count, count + i);
+		update_tag_result(tag_count, tag_count + i);
 	__VERBOSE("\n");
-	__VERBOSE_LOG("INFO", "Total number of reads        : %ld\n", count[0].nread);
-	__VERBOSE_LOG("INFO", "Number of mapped reads       : %ld\n", count[0].map);
-	__VERBOSE_LOG("INFO", "Number of unmapped reads     : %ld\n", count[0].unmap);
+	__VERBOSE_LOG("INFO", "Total number of reads        : %ld\n", tag_count[0].nread);
+	__VERBOSE_LOG("INFO", "Number of mapped reads       : %ld\n", tag_count[0].map);
+	__VERBOSE_LOG("INFO", "Number of unmapped reads     : %ld\n", tag_count[0].unmap);
 }
 
 void destroy_tag_ref()
 {
 	kh_destroy(bc, tag_ref->h);
 	free(tag_ref);
-	destroy_tag_threads();
+	free(tag_count);
 }

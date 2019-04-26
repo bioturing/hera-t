@@ -51,68 +51,11 @@ void destroy_ref_info(struct ref_info_t *ref)
 	free(ref);
 }
 
-static void insertion_sort(struct sc_cell_t *b, struct sc_cell_t *e)
+static int compare_cell(const void *a, const void *b)
 {
-	struct sc_cell_t *i, *j, tmp;
-	for (i = b + 1; i < e; ++i) {
-		if (i->cnt_umi > (i - 1)->cnt_umi) {
-			tmp = *i;
-			for (j = i; j > b && tmp.cnt_umi > (j - 1)->cnt_umi; j--)
-				*j = *(j - 1);
-			*j = tmp;
-		}
-	}
-}
-
-void merge_sort(struct sc_cell_t *a, int l, int r, int m, struct sc_cell_t *tmp)
-{
-	struct sc_cell_t *a1, *a2;
-	int len1, len2, i1, i2, k;
-	len1 = m - l;
-	len2 = r - m;
-	memcpy(tmp, a + l, len1 * sizeof(struct sc_cell_t));
-
-	a1 = tmp;
-	a2 = a + m;
-	a = a + l;
-
-	i1 = i2 = k = 0;
-	while (i1 < len1 && i2 < len2) {
-		if (a1[i1].cnt_umi > a2[i2].cnt_umi)
-			a[k++] = a1[i1++];
-		else
-			a[k++] = a2[i2++];
-	}
-
-	if (i1 < len1)
-		memcpy(a + k, a1 + i1, (len1 - i1) * sizeof(struct sc_cell_t));
-
-	if (i2 < len2)
-		memcpy(a + k, a2 + i2, (len2 - i2) * sizeof(struct sc_cell_t));
-}
-
-void sort_CBs()
-{
-	extern int n_bc;
-	extern struct sc_cell_t *CBs;
-
-	int i, buck_size, l, r, m;
-	struct sc_cell_t *tmp;
-
-	tmp = malloc(n_bc * sizeof(struct sc_cell_t));
-
-	buck_size = 64;
-	for (i = 0; i < n_bc; i += buck_size)
-		insertion_sort(CBs + i, CBs + __min(i + buck_size, n_bc));
-
-	for (i = buck_size; i < n_bc; i <<= 1) {
-		for (l = 0; l < n_bc; l += (i << 1)) {
-			r = __min(l + (i << 1), n_bc);
-			m = __min(l + i, r);
-			merge_sort(CBs, l, r, m, tmp);
-		}
-	}
-	free(tmp);
+	struct sc_cell_t *c_a = (struct sc_cell_t *) a;
+	struct sc_cell_t *c_b = (struct sc_cell_t *) b;
+	return (c_b->cnt_umi - c_a->cnt_umi);
 }
 
 int *cut_off_barcode(struct kmhash_t *h)
@@ -134,7 +77,7 @@ int *cut_off_barcode(struct kmhash_t *h)
 	
  	//__VERBOSE("Number of raw barcodes: %d\n", n_bc);
 
-	sort_CBs();
+	qsort(CBs, n_bc, sizeof(struct sc_cell_t), compare_cell);
 
 	int *index = malloc(h->size * sizeof(int));
 	
