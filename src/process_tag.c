@@ -1,0 +1,395 @@
+#include <pthread.h>
+
+#include "process_tag.h"
+#include "readTSV.h"
+#include "attribute.h"
+#include "verbose.h"
+
+#define MAX_ERROR 	1
+
+KHASH_MAP_INIT_INT(bc, int);
+
+struct tag_ref_t {
+	khash_t(bc) *h;
+
+	int trim;
+	char *left_pat;
+	char *right_pat;
+	int left_len;
+	int right_len;
+	int ref_len;
+};
+
+struct tag_stat_t {
+	int64_t nread;
+	int64_t map;
+	int64_t unmap;
+};
+
+const uint64_t _pow5_r[] = {1ull, 5ull, 25ull, 125ull, 625ull, 3125ull, 15625ull, 78125ull, 390625ull, 1953125ull, 9765625ull, 48828125ull, 244140625ull, 1220703125ull, 6103515625ull, 30517578125ull, 152587890625ull, 762939453125ull, 3814697265625ull, 19073486328125ull, 95367431640625ull, 476837158203125ull, 2384185791015625ull, 11920928955078125ull, 59604644775390625ull, 298023223876953125ull, 1490116119384765625ull};
+
+static struct tag_ref_t *tag_ref;
+int (*check_pattern)(struct read_t *, int, char *, int);
+
+/*****************************************
+*            BUILD REF INDEX             *
+*****************************************/
+
+struct tag_ref_t *init_reference()
+{
+	struct tag_ref_t *ref = malloc(sizeof(struct tag_ref_t));
+	ref->h = kh_init(bc);
+	ref->trim = ref->ref_len = ref->left_len = ref->right_len = 0;
+	ref->left_pat = ref->right_len = NULL;
+}
+
+void get_col_idx(int *col_idx, struct tsv_t *f)
+{
+	ssize_t ret = get_row_content(f);
+	if (!ret)
+		__ERROR("Reference file is empty.\n");
+	int i;
+	struct content_t value;
+
+	memset(col_idx, -1, 4 * sizeof(int));
+	for (i = 0; i < f->l; ++i) {
+		value = get_col_content(f, i);
+		if (!strncmp(value.s, "id", value.l)) {
+			col_idx[0] = i;
+		} else if(!strncmp(value.s, "name", value.l)) {
+			col_idx[1] = i;
+		} else if(!strncmp(value.s, "pattern", value.l)) {
+			col_idx[2] = i;
+		} else if(!strncmp(value.s, "sequence", value.l)) {
+			col_idx[3] = i;
+		}
+	}
+
+	if (col_idx[2] == -1)
+		__ERROR("Can not find column 'pattern'. Please re-check the input file header.\n");
+	if (col_idx[3] == -1)
+		__ERROR("Can not find column 'sequence'. Please re-check the input file header.\n");
+
+	if (col_idx[0] == -1)
+		col_idx[0] = col_idx[1];
+	if (col_idx[1] == -1)
+		col_idx[1] = col_idx[0];
+
+	if (col_idx[0] == -1)
+		__ERROR("Can not found column 'id' or 'name'. Please re-check the input file header.\n");
+}
+
+void add_hash(khash_t(bc) *h, int32_t idx, int len, int order)
+{
+	khiter_t k;
+	int32_t ret, i, tmp_idx, new_idx, ch, c;
+
+	k = kh_get(bc, h, idx);
+
+	if (k != kh_end(h))
+		__ERROR("There is pair of reference tags that is 1-hamming-distance away from each other");
+
+	k = kh_put(bc, h, idx, &ret);
+	kh_value(h, k) = order;
+
+	for (i = 0; i < len; ++i) {
+		ch = (idx / _pow5_r[i]) % 5;
+		tmp_idx = idx - ch * _pow5_r[i];
+		for (c = 0; c < NNU; ++c) {
+			if (ch == c)
+				continue;
+			new_idx = tmp_idx + _pow5_r[i] * c;
+
+			k = kh_put(bc, h, new_idx, &ret);
+			kh_value(h, k) = order;
+		}
+	}
+}
+
+void parse_pattern(struct tag_ref_t *ref, struct content_t pattern)
+{
+	int i, l;
+	int trim, left_len, right_len;
+	char left_pat, right_pat;
+	trim = left_len = right_len = 0;
+
+	if (!strncmp(pattern.s, "5P", 2)) {
+		i = 2;
+		while(i < pattern.l && pattern.s[i] == 'N')
+			++i;
+		if (i == pattern.l)
+			__ERROR("Invalid reference pattern %s\n", pattern.s);
+
+		trim = i;
+		l = 0;
+		while (i + l + 4 < pattern.l && pattern.s[i + l] != '(')
+			++l;
+		if (i + l == pattern.l)
+			__ERROR("Invalid reference pattern %s\n", pattern.s);
+
+		if (l) {
+			left_pat = malloc(l);
+			memcpy(left_pat, pattern.s + i, l);
+			left_len = l;
+		}
+
+		i += l;
+		if (strncmp(pattern.s + i, "(BC)", 4))
+			__ERROR("Should only (BC) appears in pattern: %s\n", pattern.s);
+		i += 4;
+		l = 0;
+		while (i + l < pattern.l && pattern.s[i + l] != 'N')
+			++l;
+		if (l) {
+			right_pat = malloc(l);
+			memcpy(right_pat, pattern.s + i, l);
+			right_len = l;
+		}
+	}
+
+	if (!strncmp(pattern.s + (pattern.l - 2), "3P", 2)) {
+		if (ref->trim)
+			__ERROR("Should only 3P or 5P appear in reference pattern: %s\n", pattern.s);
+		i = pattern.l - 1;
+		while (i >= 0 && pattern.s[i] == 'N')
+			--i;
+
+		if (i < 0)
+			__ERROR("Invalid reference pattern %s\n", pattern.s);
+
+		trim = -i;
+		l = 0;
+		while(i - l + 1 >= 0 && pattern.s[i - l] != ')')
+			++l;
+		if (i - l + 1 < 0)
+			__ERROR("Invalid reference pattern %s\n", pattern.s);
+
+		if (l) {
+			right_pat = malloc(l);
+			memcpy(right_pat, pattern.s + (i - l + 1), l);
+			right_len = l;
+		}
+
+		i -= l;
+		if (strncmp(pattern.s + (i - 3), "(BC)", 4))
+			__ERROR("Should only (BC) appears in pattern: %s\n", pattern.s);
+
+		i -= 4;
+		l = 0;
+		while(i - l + 1 >= 0 && pattern.s[i - l] != 'N')
+			++l;
+		if (l) {
+			left_pat = malloc(l);
+			memcpy(left_pat, pattern.s + (i - l + 1), l);
+			left_len = l;
+		}
+	}
+
+	if (ref->trim != 0 && ref->trim != trim)
+		__ERROR("There are difference types of pattern.\n");
+	if (left_len) {
+		if (!ref->left_len) {
+			ref->left_pat = left_pat;
+			ref->left_len = left_len;
+		} else if ((ref->left_len != left_len ||
+			strncmp(ref->left_pat, left_pat, left_len))) {
+			__ERROR("There are difference types of pattern.\n");
+		} else {
+			free(left_pat);
+		}
+	}
+
+	if (right_len) {
+		if (!ref->right_len) {
+			ref->right_pat = right_pat;
+			ref->right_len = right_len;
+		} else if ((ref->right_len != right_len ||
+			strncmp(ref->right_pat, right_pat, right_len))) {
+			__ERROR("There are difference types of pattern.\n");
+		} else {
+			free(right_pat);
+		}
+	}
+}
+
+void add_ref(struct ref_info_t *ref, struct content_t id, struct content_t name)
+{
+	int n = ref->n_refs;
+	++ref->n_refs;
+
+	//id
+	ref->id_iter = realloc(ref->id_iter, ref->n_refs * sizeof(int));
+	ref->id_iter[n] = ref->id_len;
+	ref->id_len += id.l;
+	ref->ref_id = realloc(ref->ref_id, ref->id_len);
+	memcpy(ref->ref_id + ref->id_iter[n], id.s, id.l);
+
+	//name
+	ref->text_iter = realloc(ref->text_iter, ref->n_refs * sizeof(int));
+	ref->text_iter[n] = ref->text_len;
+	ref->text_len += name.l;
+	ref->ref_text = realloc(ref->ref_text, ref->text_len);
+	memcpy(ref->ref_text + ref->text_iter[n], name.s, name.l);
+}
+
+void build_reference(struct input_t *input, struct ref_info_t *ref)
+{
+	tag_ref = init_reference();
+	struct tsv_t *f = init_readTSV(input->ref, ',');
+	struct content_t value;
+	int col_idx[4]; //[id, name, pattern, sequence];
+
+	get_col_idx(col_idx, f);
+
+	while(get_row_content(ref) > 0) {
+		value = get_col_content(f, col_idx[3]);
+		if (tag_ref->ref_len && tag_ref->ref_len != value.l)
+			__ERROR("Reference sequence lengths are not equal");
+
+		if (!check_valid_nu(value.s, value.l))
+			__ERROR("Reference tags sequence is not valid %s", value.s);
+
+		tag_ref->ref_len = value.l;
+		add_hash(tag_ref->h, seq2num(value.s, value.l), value.l, ref->n_refs);
+		parse_pattern(tag_ref, get_col_content(f, col_idx[2]));
+		add_ref(ref, get_col_content(f, col_idx[0]),
+			get_col_content(f, col_idx[1]));
+	}
+
+	if (tag_ref->left_len)
+		check_pattern = &check_left_pattern;
+	else if (tag_ref->right_len)
+		check_pattern = &check_right_pattern;
+	else
+		check_pattern = NULL;
+
+	destroy_readTSV(f);
+};
+
+void destroy_tag_ref()
+{
+	kh_destroy(bc, tag_ref->h);
+	free(tag_ref);
+}
+
+/*****************************************
+*                 MAP TAGS               *
+*****************************************/
+
+struct tag_stat_t *count;
+
+void init_tag_threads(int n_threads)
+{
+	count = calloc(n_threads + 1, sizeof(struct tag_stat_t));
+}
+
+void destroy_tag_threads(int n_threads)
+{
+	free(count);
+}
+
+int check_left_pattern(struct read_t *read, int start, char *pattern, int l)
+{
+	int i, k, error, max_iter;
+	
+	max_iter = read->len - tag_ref->ref_len - l + 1;
+
+	if (max_iter < start)
+		return -1;
+
+	for (i = start; i < max_iter; ++i) {
+		for (k = error = 0; k < l && error <= MAX_ERROR; ++k)
+			if (read->seq[i + k] != pattern[k])
+				++error;
+		if (k == l)
+			return start + l;
+	}
+
+	return -1;
+}
+
+int check_right_pattern(struct read_t *read, int start, char *pattern, int l)
+{
+	int i, k, error, max_iter;
+	
+	max_iter  = read->len - l + 1;
+	start += tag_ref->ref_len;
+
+	if (max_iter < start)
+		return -1;
+
+	for (i = start; i < max_iter; ++i) {
+		for (k = error = 0; k < l && error <= MAX_ERROR; ++k)
+			if (read->seq[i + k] != pattern[k])
+				++error;
+		if (k == l)
+			return i - tag_ref->ref_len;
+	}
+
+	return -1;
+}
+
+int32_t get_tag_idx(struct read_t *read)
+{
+	int start;
+	if (tag_ref->trim >=0)
+		start = tag_ref->trim;
+	else
+		start = read->len + tag_ref->trim + 1 -
+			(tag_ref->left_len + tag_ref->right_len + tag_ref->ref_len);
+	
+	if (check_pattern)
+		start = check_pattern(read, start, tag_ref->left_pat, tag_ref->left_len);
+	
+	if (start == -1)
+		return -1;
+	return seq2num(read->seq + start, tag_ref->ref_len);
+}
+
+int align_tag(struct read_t *read, int thread_num)
+{
+	struct tag_stat_t *c = count + (thread_num + 1);
+
+	int32_t tag_idx;
+	khiter_t k;
+
+	++count[thread_num].nread;
+
+	tag_idx = get_tag_idx(read);
+	if (tag_idx != -1) {
+		k = kh_get(bc, tag_ref->h, tag_idx);
+		if (k != kh_end(tag_ref->h)) {
+			++count[thread_num].map;
+			return kh_value(tag_ref->h, k);
+		}
+	}
+
+	++count[thread_num].unmap;
+	return -1;
+}
+
+void update_result(struct tag_stat_t *res, struct tag_stat_t *add)
+{
+	res->nread += add->nread;
+	res->map += add->map;
+	res->unmap += add->unmap;
+}
+
+void print_tag_count(int thread_num)
+{
+	struct tag_stat_t *c = count + (thread_num + 1);
+	update_result(count, c);
+	memset(c, 0, sizeof(struct tag_stat_t));
+	__VERBOSE("\rNumber of processed reads: %ld", count[0].nread);
+}
+
+void print_tag_stat(int n_threads)
+{
+	int i;
+	for (i = 1; i <= n_threads; ++i)
+		update_result(count, count + i);
+	__VERBOSE("\n");
+	__VERBOSE_LOG("INFO", "Total number of reads        : %10ld\n", count[0].nread);
+	__VERBOSE_LOG("INFO", "Number of mapped reads       : %10ld\n", count[0].map);
+	__VERBOSE_LOG("INFO", "Number of unmapped reads     : %10ld\n", count[0].unmap);
+}
