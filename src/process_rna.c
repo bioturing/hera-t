@@ -93,17 +93,6 @@ void load_rna_index(const char *prefix, int32_t count_intron)
 	alignment_init_hash(path);
 }
 
-void destroy_rna_index()
-{
-	extern struct bwt_t bwt;
-	extern struct genome_info_t genome;
-	extern struct gene_info_t genes;
-	extern struct transcript_info_t trans;
-	free_cons_hash();
-	bwt_destroy(&bwt);
-	free(trans.seq);
-}
-
 void add_rna_ref(struct ref_info_t *ref)
 {
 	ref->n_refs = genes.n;
@@ -161,7 +150,7 @@ int align_rna(struct read_t *read, int thread_num)
 	return align_chromium_read(read, bun, c);
 }
 
-void update_result(struct align_stat_t *res, struct align_stat_t *add)
+void update_rna_result(struct align_stat_t *res, struct align_stat_t *add)
 {
 	res->nread += add->nread;
 	res->exon += add->exon;
@@ -173,16 +162,16 @@ void update_result(struct align_stat_t *res, struct align_stat_t *add)
 void print_rna_count(int thread_num)
 {
 	struct align_stat_t *c = count + (thread_num + 1);
-	update_result(count, c);
+	update_rna_result(count, c);
 	memset(c, 0, sizeof(struct align_stat_t));
-	__VERBOSE("\rNumber of processed reads: %ld", count[0].nread);
+	__VERBOSE("\r Mapped reads: %ld / %ld", count[0].exon, count[0].nread);
 }
 
 void print_rna_stat(int n_threads, int count_intron)
 {
 	int i;
 	for (i = 1; i <= n_threads; ++i)
-		update_result(count, count + i);
+		update_rna_result(count, count + i);
 	__VERBOSE("\n");
 	__VERBOSE_LOG("INFO", "Total number of reads               : %10ld\n",
 			count[0].nread);
@@ -195,4 +184,16 @@ void print_rna_stat(int n_threads, int count_intron)
 		__VERBOSE_LOG("INFO", "Number of nonexonic reads           : %10ld\n", count[0].intergenic);
 	}
 	__VERBOSE_LOG("INFO", "Number of unmapped reads            : %10ld\n", count[0].unmap);
+}
+
+void destroy_rna_index(int n_threads)
+{
+	extern struct bwt_t bwt;
+	extern struct genome_info_t genome;
+	extern struct gene_info_t genes;
+	extern struct transcript_info_t trans;
+	free_cons_hash();
+	bwt_destroy(&bwt);
+	free(trans.seq);
+	destroy_rna_threads(n_threads);
 }

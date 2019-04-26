@@ -34,6 +34,7 @@ SRC = src/alignment.c 				\
 	src/read_fastq.c 			\
 	src/parse_dir.c 			\
 	src/process_rna.c 			\
+	src/process_tag.c 			\
 	src/bundles.c				\
 	src/main.c
 

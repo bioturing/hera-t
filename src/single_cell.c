@@ -34,10 +34,23 @@ struct thread_data_t {
 *             GENERAL PROCESS            *
 *****************************************/
 
+void print_input(struct input_t *input)
+{
+	__VERBOSE("[Process read]\n Index: %s\n Directory: %s\n Sample name: %s\n",
+		input->ref, input->in_dir, input->name);
+	__VERBOSE(" Number of pair files: %u\n", input->n_files);
+
+	int i;
+	for (i = 0; i < input->n_files; ++i)
+		__VERBOSE("\t%s -- %s\n", input->left_file[i], input->right_file[i]);
+}
+
 void process_read(struct opt_count_t *opt, struct input_t *input,
 		  struct kmhash_t *bc_table,
 		  void (*action)(struct worker_data_t))
 {
+	print_input(input);
+
 	struct worker_data_t worker_data;
 	pthread_t *worker_threads;
 	struct thread_data_t *thread_data;
@@ -83,10 +96,10 @@ void align_read(struct read_t *read1, struct read_t *read2,
 		struct thread_data_t *data, int r1_len)
 {
 	if (read1->len < r1_len)
-		//__ERROR("Read lenght of %s is shorter than |BC| + |UMI|.\n \
-		//	Expect > %u.\n Receive %u.\n", 
-		//	read1->name, r1_len, read1->len);
 		return;
+		/*__ERROR("Read lenght of %s is shorter than |BC| + |UMI|.\n \
+			Expect > %u.\n Receive %u.\n", 
+			read1->name, r1_len, read1->len);*/
 
 	int ref = data->map_read(read2, data->thread_num);
 
@@ -178,8 +191,6 @@ void rna_work(struct worker_data_t worker_data)
 
 	for (i = 0; i < n_threads; ++i)
 		pthread_join(worker_threads[i], NULL);
-
-	destroy_rna_threads(n_threads);
 }
 
 void process_rna(struct opt_count_t *opt, struct kmhash_t *bc_table,
@@ -189,7 +200,7 @@ void process_rna(struct opt_count_t *opt, struct kmhash_t *bc_table,
 	add_rna_ref(ref);
 	process_read(opt, opt->rna, bc_table, &rna_work);
 	print_rna_stat(opt->n_threads, opt->count_intron);
-	destroy_rna_index();
+	destroy_rna_index(opt->n_threads);
 }
 
 /*****************************************
@@ -216,7 +227,7 @@ void tag_work(struct worker_data_t worker_data)
 	for (i = 0; i < n_threads; ++i)
 		pthread_join(worker_threads[i], NULL);
 
-	destroy_tag_threads(n_threads);
+	destroy_tag_threads();
 }
 
 void process_tag(struct opt_count_t *opt, struct input_t *input,

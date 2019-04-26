@@ -13,6 +13,8 @@ void print_tag_stat(int n_threads);
 
 int align_tag(struct read_t *read, int thread_num);
 
+void init_tag_threads(int n_threads);
+
 void destroy_tag_ref();
 
 #endif

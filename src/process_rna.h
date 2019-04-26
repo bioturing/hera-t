@@ -10,11 +10,9 @@ void add_rna_ref(struct ref_info_t *ref);
 
 void init_rna_threads(int n_threads);
 
-void destroy_rna_threads();
-
 int align_rna(struct read_t *read, int thread_num);
 
-void destroy_rna_index();
+void destroy_rna_index(int n_threads);
 
 void print_rna_count(int thread_num);
 

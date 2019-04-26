@@ -239,13 +239,6 @@ int check_valid_input(struct input_t *input, char *type)
 		__ERROR("Missing reference for %s\n", type);
 
 	parse_dir(input);
-	__VERBOSE("[%s]\n Index: %s\n Directory: %s\n Sample name: %s\n",
-		type, input->ref, input->in_dir, input->name);
-	__VERBOSE(" Number of pair files: %u\n", input->n_files);
-
-	int i;
-	for (i = 0; i < input->n_files; ++i)
-		__VERBOSE("\t%s -- %s\n", input->left_file[i], input->right_file[i]);
 	return 1;
 }
 
@@ -337,7 +330,7 @@ void parse_input_meta(struct opt_count_t *opt, char *meta_file)
 			crispr->in_dir = get_string(value);
 		} else if (!strncmp(param.s, "crispr_name", param.l)) {
 			crispr->name = get_string(value);
-		} else if (!strncmp(param.s, "crispr_adt_ref", param.l)) {
+		} else if (!strncmp(param.s, "crispr_ref", param.l)) {
 			crispr->ref = get_string(value);
 		}
 	}
