@@ -126,6 +126,9 @@ char *num2seq(int64_t num, int len);
 /* concat two strings */
 void concat_str(char *s1, int l1, char *s2, int l2);
 
+/* check if string contain N */
+int check_valid_nu(const char *seq, int len);
+
 extern int8_t nt4_table[256];
 extern char *nt4_char, *rev_nt4_char;
 

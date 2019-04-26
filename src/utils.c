@@ -97,3 +97,12 @@ void concat_str(char *s1, int l1, char *s2, int l2)
 	memcpy(s1 + l1, s2, l2);
 	s1[l1 + l2] = '\0';
 }
+
+int check_valid_nu(const char *seq, int len)
+{
+	int i;
+	for (i = 0; i < len; ++i)
+		if (nt4_table[(int)seq[i]] >= NNU)
+			return 0;
+	return 1;
+}

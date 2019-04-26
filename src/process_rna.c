@@ -109,18 +109,21 @@ void add_rna_ref(struct ref_info_t *ref)
 	ref->n_refs = genes.n;
 	ref->type[0] = ref->n_refs;
 
-	ref->ref_text = realloc(ref->ref_text, genes.n * genes.l_name);
-	memcpy(ref->ref_text, genes.gene_name, genes.n * genes.l_name);
+	ref->text_len = genes.n * genes.l_name;
+	ref->ref_text = realloc(ref->ref_text, ref->text_len);
+	memcpy(ref->ref_text, genes.gene_name, ref->text_len);
 
-	ref->gene_id = realloc(ref->gene_id, genes.n * genes.l_id);
-	memcpy(ref->gene_id, genes.gene_id, genes.n * genes.l_id);
+	ref->id_len = genes.n * genes.l_id;
+	ref->ref_id = realloc(ref->ref_id, ref->id_len);
+	memcpy(ref->ref_id, genes.gene_id, ref->id_len);
 
-	ref->ref_iter = realloc(ref->ref_iter, ref->n_refs * sizeof(int));
-	ref->gene_iter = realloc(ref->gene_iter, ref->n_refs * sizeof(int));
+	ref->text_iter = realloc(ref->text_iter, ref->n_refs * sizeof(int));
+	ref->id_iter = realloc(ref->id_iter, ref->n_refs * sizeof(int));
+
 	int i;
 	for (i = 0; i < ref->n_refs; ++i) {
-		ref->ref_iter[i] = i * genes.l_name;
-		ref->gene_iter[i] = i * genes.l_id;
+		ref->text_iter[i] = i * genes.l_name;
+		ref->id_iter[i] = i * genes.l_id;
 	}
 }
 

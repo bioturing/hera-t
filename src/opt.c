@@ -352,7 +352,8 @@ void parse_input_meta(struct opt_count_t *opt, char *meta_file)
 		opt->protein = protein;
 	if (check_valid_input(crispr, "CRISPR measurement"))
 		opt->crispr = crispr;
-	
+
+	destroy_readTSV(meta);
 }
 
 struct opt_count_t *get_opt_count(int argc, char *argv[])

@@ -33,20 +33,21 @@ struct ref_info_t *init_ref_info()
 {
 	struct ref_info_t *ref = malloc(sizeof(struct ref_info_t));
 	ref->n_refs = 0;
-	ref->ref_iter = calloc(1, sizeof(int));
+	ref->text_iter = calloc(1, sizeof(int));
 	ref->ref_text = malloc(1);
-	ref->gene_id = malloc(1);
-	ref->gene_iter = calloc(1, sizeof(int));
+	ref->ref_id = malloc(1);
+	ref->id_iter = calloc(1, sizeof(int));
+	ref->text_len = ref->id_len = 0;
 
 	return ref;
 }
 
 void destroy_ref_info(struct ref_info_t *ref)
 {
-	free(ref->ref_iter);
+	free(ref->text_iter);
 	free(ref->ref_text);
-	free(ref->gene_id);
-	free(ref->gene_iter);
+	free(ref->ref_id);
+	free(ref->id_iter);
 	free(ref);
 }
 
@@ -245,8 +246,8 @@ void print_refs(struct ref_info_t *ref, char *out_path)
 	if (ref->type[0]) {
 		for (i = start; i < ref->type[0]; ++i)
 			fprintf(fp, "%s\t%s\tGene expression\n",
-				ref->gene_id + ref->gene_iter[i],
-				ref->ref_text + ref->ref_iter[i]);
+				ref->ref_id + ref->id_iter[i],
+				ref->ref_text + ref->text_iter[i]);
 		start = ref->type[0];
 	}
 
@@ -254,8 +255,8 @@ void print_refs(struct ref_info_t *ref, char *out_path)
 	if (ref->type[1]) {
 		for (i = start; i < ref->type[1]; ++i)
 			fprintf(fp, "%s\t%s\tCell hashing\n",
-				ref->ref_text + ref->ref_iter[i],
-				ref->ref_text + ref->ref_iter[i]);
+				ref->ref_id + ref->id_iter[i],
+				ref->ref_text + ref->text_iter[i]);
 
 		start += ref->type[1];
 	}
@@ -264,8 +265,8 @@ void print_refs(struct ref_info_t *ref, char *out_path)
 	if (ref->type[1]) {
 		for (i = start; i < ref->type[2]; ++i)
 			fprintf(fp, "%s\t%s\tProtein measurement\n",
-				ref->ref_text + ref->ref_iter[i],
-				ref->ref_text + ref->ref_iter[i]);
+				ref->ref_id + ref->id_iter[i],
+				ref->ref_text + ref->text_iter[i]);
 
 		start += ref->type[2];
 	}
@@ -274,8 +275,8 @@ void print_refs(struct ref_info_t *ref, char *out_path)
 	if (ref->type[1]) {
 		for (i = start; i < ref->type[3]; ++i)
 			fprintf(fp, "%s\t%s\tCRISPR capture\n",
-				ref->ref_text + ref->ref_iter[i],
-				ref->ref_text + ref->ref_iter[i]);
+				ref->ref_id + ref->id_iter[i],
+				ref->ref_text + ref->text_iter[i]);
 
 		start += ref->type[3];
 	}

@@ -46,6 +46,7 @@ ssize_t get_row_content(struct tsv_t *f)
 			f->row_content = realloc(f->row_content, (f->m + 1) * sizeof(int));
 		}
 		f->row_content[f->l] = i + 1;
+		f->buf[i] = '\0';
 	}
 	f->l += 1;
 	f->row_content[f->l] = ret + 1;

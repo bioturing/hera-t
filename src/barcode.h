@@ -8,9 +8,11 @@
 struct ref_info_t {
 	int n_refs;
 	char *ref_text;
-	int *ref_iter;
-	char *gene_id;
-	int *gene_iter;
+	int *text_iter;
+	char *ref_id;
+	int *id_iter;
+	int text_len;
+	int id_len;
 	int type[4];
 };
 
