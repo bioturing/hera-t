@@ -265,6 +265,12 @@ void single_cell(int argc, char *argv[])
 	if (opt->rna)
 		process_rna(opt, bc_table, ref);
 	
+	if (opt->cell)
+		process_tag(opt, opt->cell, bc_table, ref, 1);
+
+	if (opt->protein)
+		process_tag(opt, opt->protein, bc_table, ref, 2);
+
 	if (opt->crispr)
 		process_tag(opt, opt->crispr, bc_table, ref, 3);
 

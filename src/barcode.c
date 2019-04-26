@@ -205,7 +205,7 @@ void print_refs(struct ref_info_t *ref, char *out_path)
 	}
 
 	// Print protein measurement
-	if (ref->type[1]) {
+	if (ref->type[2]) {
 		for (i = start; i < ref->type[2]; ++i)
 			fprintf(fp, "%s\t%s\tProtein measurement\n",
 				ref->ref_id + ref->id_iter[i],
@@ -215,7 +215,7 @@ void print_refs(struct ref_info_t *ref, char *out_path)
 	}
 
 	// Print CRISPR capture
-	if (ref->type[1]) {
+	if (ref->type[3]) {
 		for (i = start; i < ref->type[3]; ++i)
 			fprintf(fp, "%s\t%s\tCRISPR capture\n",
 				ref->ref_id + ref->id_iter[i],
