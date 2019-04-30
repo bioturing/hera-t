@@ -2,7 +2,7 @@
 #define _BARCODE_H_
 
 #include "attribute.h"
-#include "kmhash.h"
+#include "bc_hash.h"
 #include "opt.h"
 
 struct ref_info_t {
@@ -18,7 +18,7 @@ struct ref_info_t {
 
 struct ref_info_t *init_ref_info();
 
-void quantification(struct opt_count_t *opt, struct kmhash_t *h,
+void quantification(struct opt_count_t *opt, struct bc_hash_t *h,
 			struct ref_info_t *ref);
 
 #endif

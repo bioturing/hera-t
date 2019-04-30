@@ -8,13 +8,9 @@
 #define __get_gene(x) ((int)((x) & GENE_MASK))
 #define __get_umi(x) ((x) >> GENE_BIT_LEN)
 
-const uint64_t pow5_r[] = {1ull, 5ull, 25ull, 125ull, 625ull, 3125ull, 15625ull, 78125ull, 390625ull, 1953125ull, 9765625ull, 48828125ull, 244140625ull, 1220703125ull, 6103515625ull, 30517578125ull, 152587890625ull, 762939453125ull, 3814697265625ull, 19073486328125ull, 95367431640625ull, 476837158203125ull, 2384185791015625ull, 11920928955078125ull, 59604644775390625ull, 298023223876953125ull, 1490116119384765625ull};
+#define CUT_OFF 0.01
 
-struct sc_cell_t {
-	uint64_t idx;
-	uint32_t cnt_umi;
-	struct umi_hash_t *h;
-};
+const uint64_t pow5_r[] = {1ull, 5ull, 25ull, 125ull, 625ull, 3125ull, 15625ull, 78125ull, 390625ull, 1953125ull, 9765625ull, 48828125ull, 244140625ull, 1220703125ull, 6103515625ull, 30517578125ull, 152587890625ull, 762939453125ull, 3814697265625ull, 19073486328125ull, 95367431640625ull, 476837158203125ull, 2384185791015625ull, 11920928955078125ull, 59604644775390625ull, 298023223876953125ull, 1490116119384765625ull};
 
 struct umi_bundle_t {
 	int n_threads;
@@ -25,19 +21,20 @@ struct umi_bundle_t {
 	int n_refs;
 };
 
-struct sc_cell_t *CBs;
 int32_t n_bc;
 int16_t bc_len, umi_len;
+struct bc_hash_t *bc_hash;
 
 struct ref_info_t *init_ref_info()
 {
 	struct ref_info_t *ref = malloc(sizeof(struct ref_info_t));
 	ref->n_refs = 0;
-	ref->text_iter = calloc(1, sizeof(int));
+	ref->text_iter = malloc(1);
 	ref->ref_text = malloc(1);
 	ref->ref_id = malloc(1);
-	ref->id_iter = calloc(1, sizeof(int));
+	ref->id_iter = malloc(1);
 	ref->text_len = ref->id_len = 0;
+	memset(ref->type, 0, 4 * sizeof(int));
 
 	return ref;
 }
@@ -53,111 +50,93 @@ void destroy_ref_info(struct ref_info_t *ref)
 
 static int compare_cell(const void *a, const void *b)
 {
-	struct sc_cell_t *c_a = (struct sc_cell_t *) a;
-	struct sc_cell_t *c_b = (struct sc_cell_t *) b;
-	return (c_b->cnt_umi - c_a->cnt_umi);
+	struct umi_hash_t *c_a = (struct umi_hash_t *) a;
+	struct umi_hash_t *c_b = (struct umi_hash_t *) b;
+	return c_b->type == c_a->type? c_b->count - c_a->count: c_b->type - c_a->type;
 }
 
-int *cut_off_barcode(struct kmhash_t *h)
+void cut_off_barcode(int *index)
 {
-	kmint_t k;
-	int i, j, flag, ch, c;
+	int i;
+	khiter_t k;
+	khash_t(bc_umi) *h = bc_hash->h;
+	struct umi_hash_t *umi = bc_hash->umi;
+
+	n_bc = bc_hash->n_bc;
+	qsort(umi, n_bc, sizeof(struct umi_hash_t), compare_cell);
+	for (i = 0; i < n_bc; ++i) {
+		k = kh_get(bc_umi, h, umi[i].idx);
+		index[kh_value(h, k)] = i;
+	}
+}
+
+void merge_bc(int bc1, int bc2)
+{
+	khiter_t k;
+	struct umi_hash_t *umi = bc_hash->umi;
+
+	khash_t(bc_umi) *h = umi[bc1].h;
+
+	for (k = kh_begin(h); k != kh_end(h); ++k)
+		if (kh_exist(h, k))
+			add_umi(umi + bc2, kh_key(h, k), kh_value(h, k));
+	umi[bc1].type = -bc2;
+}
+
+void correct_barcode(int *index)
+{
 	uint64_t bc_idx, new_bc, tmp_idx;
+	int i, k, ch, c, max_count, merge_iter, flag;
+	khiter_t iter;
+	struct umi_hash_t *umi = bc_hash->umi;
+	khash_t(bc_umi) *h = bc_hash->h;
 
-	CBs = malloc(h->n_items * sizeof(struct sc_cell_t));
-	n_bc = 0;
-	for (k = 0; k < h->size; ++k) {
-		if (h->bucks[k].idx == TOMB_STONE)
+	float cut_off = umi[0].count * CUT_OFF;
+	for (i = 0; i < n_bc; ++i)
+		if ((float) umi[i].count < cut_off || umi[i].type < umi[0].type)
+			n_bc = i - 1;
+
+	for (i = bc_hash->n_bc; i >= n_bc ; --i) {
+		if (umi[i].type < 0)
 			continue;
-		CBs[n_bc].idx = h->bucks[k].idx;
-		CBs[n_bc].cnt_umi = h->bucks[k].umis->n_items;
-		CBs[n_bc].h = h->bucks[k].umis;
-		++n_bc;
-	}
-	
- 	//__VERBOSE("Number of raw barcodes: %d\n", n_bc);
 
-	qsort(CBs, n_bc, sizeof(struct sc_cell_t), compare_cell);
-
-	int *index = malloc(h->size * sizeof(int));
-	
-	for (i = 0; i < n_bc; ++i) {
-		k = kmhash_get(h, CBs[i].idx);
-		index[k] = i;
-	}
-
-	for (i = 0; i < n_bc; ++i) {
-		bc_idx = CBs[i].idx;
-		flag = 0;
-		for (j = 0; j < bc_len; ++j) {
-			ch = (bc_idx / pow5_r[j]) % 5;
-			tmp_idx = bc_idx - pow5_r[j] * ch;
-			for (c = 0; c < NNU; ++c) {
-				if (ch == c)
-					continue;
-				new_bc = tmp_idx + pow5_r[j] * c;
-				k = kmhash_get(h, new_bc);
-				if (k < KMHASH_MAX_SIZE && h->bucks[k].umis->n_items >= CBs[i].cnt_umi) {
-					flag = 1;
-					break;
-				}
-			}
-			if (flag)
-				break;
-		}
-		if (flag) {
-			n_bc = i;
-			break;
-		}
-	}
-
-	return index;
-}
-
-static void merge_umi(struct kmhash_t *h, uint64_t dst_bc, uint64_t src_bc)
-{
-	kmint_t dst_k, src_k, k;
-	struct umi_hash_t *dst_umi, *src_umi;
-	dst_k = kmhash_get(h, dst_bc);
-	src_k = kmhash_get(h, src_bc);
-	assert(dst_k != KMHASH_MAX_SIZE);
-	assert(src_k != KMHASH_MAX_SIZE);
-	dst_umi = h->bucks[dst_k].umis;
-	src_umi = h->bucks[src_k].umis;
-	for (k = 0; k < src_umi->size; ++k) {
-		if (src_umi->bucks[k] == TOMB_STONE)
-			continue;
-		umihash_put_umi_single(dst_umi, src_umi->bucks[k]);
-	}
-}
-
-void correct_barcode(struct kmhash_t *h, int *index)
-{
-	uint64_t bc_idx, cur_bc, new_bc, tmp_idx;
-	int l, i, k, ch, c, cnt_new;
-	kmint_t iter;
-	l = (int)h->n_items;
-	for (i = n_bc; i < l; ++i) {
-		bc_idx = CBs[i].idx;
-		cnt_new = 0;
-		new_bc = 0;
+		bc_idx = umi[i].idx;
+		max_count = 0;
 		for (k = 0; k < bc_len; ++k) {
+			flag = 0;
 			ch = (bc_idx / pow5_r[k]) % 5;
 			tmp_idx = bc_idx - ch * pow5_r[k];
 			for (c = 0; c < NNU; ++c) {
 				if (ch == c)
 					continue;
-				cur_bc = tmp_idx + pow5_r[k] * c;
-				iter = kmhash_get(h, cur_bc);
-				if (iter < KMHASH_MAX_SIZE && index[iter] < n_bc) {
-					++cnt_new;
-					new_bc = cur_bc;
+				new_bc = tmp_idx + pow5_r[k] * c;
+				iter = kh_get(bc_umi, h, new_bc);
+				if (iter == kh_end(h))
+					continue;
+
+				iter = index[kh_value(h, iter)];
+				while (umi[iter].type < 0) {
+					if (i == -umi[iter].type){
+						flag = 1;
+						break;
+					}
+					iter = -umi[iter].type;
+				}
+				if (flag)
+					continue;
+				if (umi[iter].count > max_count) {
+					max_count = umi[iter].count;
+					merge_iter = kh_get(bc_umi, h, umi[iter].idx);
 				}
 			}
 		}
-		if (cnt_new == 1)
-			merge_umi(h, new_bc, bc_idx);
+		if (max_count)
+			merge_bc(i, index[kh_value(h, merge_iter)]);
 	}
+
+	for (i = 0, n_bc = bc_hash->n_bc; i < n_bc; ++i)
+		if ((float) umi[i].count < cut_off || umi[i].type < umi[0].type)
+			n_bc = i - 1;
 }
 
 void print_barcodes(const char *out_path)
@@ -167,9 +146,9 @@ void print_barcodes(const char *out_path)
 	int i;
 
 	fp = xfopen(out_path, "w");
-
+	struct umi_hash_t *umi = bc_hash->umi;
 	for (i = 0; i < n_bc; ++i) {
-		seq = num2seq(CBs[i].idx, bc_len);
+		seq = num2seq(umi[i].idx, bc_len);
 		fprintf(fp, "%s\n", seq);
 		free(seq);
 	}
@@ -201,7 +180,7 @@ void print_refs(struct ref_info_t *ref, char *out_path)
 				ref->ref_id + ref->id_iter[i],
 				ref->ref_text + ref->text_iter[i]);
 
-		start += ref->type[1];
+		start = ref->type[1];
 	}
 
 	// Print protein measurement
@@ -211,7 +190,7 @@ void print_refs(struct ref_info_t *ref, char *out_path)
 				ref->ref_id + ref->id_iter[i],
 				ref->ref_text + ref->text_iter[i]);
 
-		start += ref->type[2];
+		start = ref->type[2];
 	}
 
 	// Print CRISPR capture
@@ -220,8 +199,6 @@ void print_refs(struct ref_info_t *ref, char *out_path)
 			fprintf(fp, "%s\t%s\tCRISPR capture\n",
 				ref->ref_id + ref->id_iter[i],
 				ref->ref_text + ref->text_iter[i]);
-
-		start += ref->type[3];
 	}
 	fclose(fp);
 }
@@ -253,42 +230,43 @@ void write_mtx(char *path, int len)
 	xwfclose(fmtx);
 }
 
-void correct_umi(struct sc_cell_t *bc, int n_refs)
+void merge_count(khash_t(bc_umi) *h, khiter_t src, khiter_t dst)
 {
-	struct umi_hash_t *h;
-	kmint_t i, iter;
-	uint64_t umi_idx, new_umi, new_bin;
-	int gene, has_Ns, k, ch, c, flag;
-	h = bc->h;
+	if (kh_value(h, src) > kh_value(h, dst)) {
+		kh_value(h, src) += kh_value(h, dst);
+		kh_value(h, dst) = -1;
+	} else {
+		kh_value(h, dst) += kh_value(h, src);
+		kh_value(h, src) = -1;
+	}
+}
 
-	for (i = 0; i < h->size; ++i) {
-		if (h->bucks[i] == TOMB_STONE || __get_gene(h->bucks[i]) == n_refs)
+void correct_umi(struct umi_hash_t *umi)
+{
+	uint64_t umi_idx, new_umi, key;
+	int i, gene, ch, c, flag;
+	khash_t(bc_umi) *h = umi->h;
+	khiter_t k, iter;
+
+	for (k = kh_begin(h); k != kh_end(h); ++k) {
+		if (!kh_exist(h, k) || kh_value(h, k) < 0)
 			continue;
-		umi_idx = __get_umi(h->bucks[i]);
-		gene = __get_gene(h->bucks[i]);
-		has_Ns = 0;
 
-		for (k = 0; k < umi_len; ++k) {
-			ch = (umi_idx / pow5_r[k]) % 5;
-			has_Ns += (ch == NNU);
-		}
-
-		if (has_Ns) {
-			h->bucks[i] = h->bucks[i] >> GENE_BIT_LEN << GENE_BIT_LEN | n_refs;
-			continue;
-		}
+		key = kh_key(h, k);
+		umi_idx = __get_umi(key);
+		gene = __get_gene(key);
 		flag = 0;
 
-		for (k = 0; k < umi_len; ++k) {
-			ch = (umi_idx / pow5_r[k]) % 5;
+		for (i = 0; i < umi_len; ++i) {
+			ch = (umi_idx / pow5_r[i]) % 5;
 			for (c = 0; c < NNU; ++c) {
 				if (c == ch)
 					continue;
-				new_umi = umi_idx + (c - ch) * pow5_r[k];
-				new_bin = (new_umi << GENE_BIT_LEN | gene);
-				iter = umihash_get(h, new_bin);
-				if (iter != KMHASH_MAX_SIZE) {
-					h->bucks[i] = h->bucks[i] >> GENE_BIT_LEN << GENE_BIT_LEN | n_refs;
+				new_umi = umi_idx + (c - ch) * pow5_r[i];
+				new_umi = (new_umi << GENE_BIT_LEN | gene);
+				iter = kh_get(bc_umi, h, new_umi);
+				if (iter != kh_end(h) && kh_value(h, iter) > 0) {
+					merge_count(h, k, iter);
 					flag = 1;
 					break;
 				}
@@ -299,28 +277,25 @@ void correct_umi(struct sc_cell_t *bc, int n_refs)
 	}
 }
 
-void count_genes(struct sc_cell_t *bc, int bc_pos, int *cnt, int n_refs,
+void count_genes(struct umi_hash_t *umi, int bc_pos, int *cnt, int n_refs,
 		FILE *fbin, pthread_mutex_t *lock, uint64_t *n_lines)
 {
-	kmint_t i;
-	int k;
-	struct umi_hash_t *h;
-	h = bc->h;
+	khiter_t k;
+	int i;
+	khash_t(bc_umi) *h = umi->h;
 
 	memset(cnt, 0, n_refs * sizeof(int));
-	for (i = 0; i < h->size; ++i) {
-		if (h->bucks[i] == TOMB_STONE || __get_gene(h->bucks[i]) == n_refs)
-			continue;
-		++cnt[__get_gene(h->bucks[i])];
-	}
+	for (k = kh_begin(h); k != kh_end(h); ++k)
+		if (kh_exist(h, k) && kh_value(h, k) > 0)
+			++cnt[__get_gene(kh_key(h, k))];
 
 	pthread_mutex_lock(lock);
-	for (k = 1; k <= n_refs; ++k) {
-		if (cnt[k - 1]) {
+	for (i = 1; i <= n_refs; ++i) {
+		if (cnt[i - 1]) {
 			++*n_lines;
-			xfwrite(&k, sizeof(int), 1, fbin);
+			xfwrite(&i, sizeof(int), 1, fbin);
 			xfwrite(&bc_pos, sizeof(int), 1, fbin);
-			xfwrite(cnt + (k - 1), sizeof(int), 1, fbin);
+			xfwrite(cnt + (i - 1), sizeof(int), 1, fbin);
 		}
 	}
 	pthread_mutex_unlock(lock);
@@ -344,8 +319,8 @@ void *umi_worker(void *data)
 
 	for (i = 0; i < n_bc; ++i) {
 		if (i % n_threads == thread_no) {
-			correct_umi(CBs + i, bundle->n_refs);
-			count_genes(CBs + i, i + 1, cnt, bundle->n_refs, fbin, lock, n_lines);
+			correct_umi(bc_hash->umi + i);
+			count_genes(bc_hash->umi + i, i + 1, cnt, bundle->n_refs, fbin, lock, n_lines);
 		}
 	}
 
@@ -401,20 +376,56 @@ void do_correct_umi(struct opt_count_t *opt, int n_refs, const char *out_path)
 	free(bundles);
 }
 
-void quantification(struct opt_count_t *opt, struct kmhash_t *h,
+void print_molecule_info(char *out_path, struct ref_info_t *ref)
+{
+	char *bc_str, *umi_str;
+	FILE *fp;
+	int i, r;
+	int64_t value, umi_idx;
+	khiter_t k;
+	khash_t(bc_umi) *h;
+	struct umi_hash_t *umi = bc_hash->umi;
+
+	fp = xfopen(out_path, "w");
+	fprintf(fp, "barcode\tUMI\treference\tread_count\n");
+	for (i = 0; i < n_bc; ++i) {
+		bc_str = num2seq(umi[i].idx, bc_len);
+		h = umi[i].h;
+
+		for (k = kh_begin(h); k != kh_end(h); ++k) {
+			if (!kh_exist(h, k) || kh_value(h, k) < 0)
+				continue;
+			value = kh_key(h, k);
+			umi_idx = __get_umi(value);
+			umi_str = num2seq(umi_idx, umi_len);
+			r = __get_gene(value);
+			fprintf(fp, "%s\t%s\t%s\t%u\n", bc_str, umi_str,
+				ref->ref_text + ref->text_iter[r],
+				kh_value(h, k));
+			free(umi_str);
+		}
+		free(bc_str);
+	}
+
+	fclose(fp);
+}
+
+void quantification(struct opt_count_t *opt, struct bc_hash_t *h,
 			struct ref_info_t *ref)
 {
 	bc_len = opt->lib.bc_len;
 	umi_len = opt->lib.umi_len;
+	bc_hash = h;
 
-	int *index = cut_off_barcode(h);
+	int *index = malloc(h->n_bc * sizeof(int));
+	cut_off_barcode(index);
 	__VERBOSE("Done cutting off barcode\n");
-	correct_barcode(h, index);
+	correct_barcode(index);
 	__VERBOSE("Done correcting barcode\n");
 	free(index);
 
 	int len = strlen(opt->out_dir);
-	char path[len + 15];
+	char path[len + 20];
 	memcpy(path, opt->out_dir, len);
 
 	concat_str(path, len, "/barcodes.tsv", 13);
@@ -427,5 +438,7 @@ void quantification(struct opt_count_t *opt, struct kmhash_t *h,
 	do_correct_umi(opt, ref->n_refs, path);
 
 	write_mtx(path, len);
-	free(CBs);
+
+	concat_str(path, len, "/molecule_info.tsv", 18);
+	print_molecule_info(path, ref);
 }

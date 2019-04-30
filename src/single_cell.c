@@ -2,7 +2,6 @@
 
 #include "attribute.h"
 #include "verbose.h"
-#include "kmhash.h"
 #include "opt.h"
 #include "read_fastq.h"
 #include "process_rna.h"
@@ -10,22 +9,21 @@
 #include "utils.h"
 
 struct worker_data_t {
-	struct opt_count_t *opt;
-	struct kmhash_t *bc_table;
-	struct dqueue_t *q;
 	pthread_t *worker_threads;
 	struct thread_data_t *thread_data;
 	pthread_mutex_t *lock_count;
 	pthread_attr_t *attr;
+	int n_threads;
 };
 
 struct thread_data_t {
 	int thread_num;
 	struct library_t *lib;
 	struct dqueue_t *q;
-	struct kmhash_t *bc_table;
+	struct bc_hash_t *bc_table;
 	pthread_mutex_t *lock_count;
 	pthread_mutex_t *lock_hash;
+	int type;
 	int (*map_read)(struct read_t*, int);
 	void (*print_count)(int);
 };
@@ -46,8 +44,9 @@ void print_input(struct input_t *input)
 }
 
 void process_read(struct opt_count_t *opt, struct input_t *input,
-		  struct kmhash_t *bc_table,
-		  void (*action)(struct worker_data_t))
+		  struct bc_hash_t *bc_table,
+		  void (*action)(struct worker_data_t),
+		  int type)
 {
 	print_input(input);
 
@@ -56,6 +55,7 @@ void process_read(struct opt_count_t *opt, struct input_t *input,
 	struct thread_data_t *thread_data;
 	pthread_attr_t attr;
 	pthread_mutex_t lock_count;
+	pthread_mutex_t lock_hash;
 	struct dqueue_t *q;
 	int i;
 	
@@ -63,26 +63,25 @@ void process_read(struct opt_count_t *opt, struct input_t *input,
 	worker_threads = calloc(opt->n_threads, sizeof(pthread_t));
 	thread_data = calloc(opt->n_threads, sizeof(struct thread_data_t));
 	pthread_mutex_init(&lock_count, NULL);
+	pthread_mutex_init(&lock_hash, NULL);
 
 	pthread_attr_init(&attr);
 	pthread_attr_setstacksize(&attr, THREAD_STACK_SIZE);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
 
-	worker_data.opt = opt;
-	worker_data.bc_table = bc_table;
-	worker_data.q = q;
 	worker_data.worker_threads = worker_threads;
 	worker_data.thread_data = thread_data;
 	worker_data.attr = &attr;
-	worker_data.lock_count = &lock_count;
+	worker_data.n_threads = opt->n_threads;
 
 	for (i = 0; i < opt->n_threads; ++i) {
 		thread_data[i].thread_num = i;
-		thread_data[i].lib = &worker_data.opt->lib;
-		thread_data[i].q = worker_data.q;
-		thread_data[i].bc_table = worker_data.bc_table;
-		thread_data[i].lock_count = worker_data.lock_count;
-		thread_data[i].lock_hash = worker_data.bc_table->locks + i;
+		thread_data[i].lib = &opt->lib;
+		thread_data[i].q = q;
+		thread_data[i].bc_table = bc_table;
+		thread_data[i].type = type;
+		thread_data[i].lock_count = &lock_count;
+		thread_data[i].lock_hash = &lock_hash;
 	}
 
 	(*action)(worker_data);
@@ -96,10 +95,12 @@ void align_read(struct read_t *read1, struct read_t *read2,
 		struct thread_data_t *data, int r1_len)
 {
 	if (read1->len < r1_len)
-		return;
-		/*__ERROR("Read lenght of %s is shorter than |BC| + |UMI|.\n \
+		__ERROR("Read lenght of %s is shorter than |BC| + |UMI|.\n \
 			Expect > %u.\n Receive %u.\n", 
-			read1->name, r1_len, read1->len);*/
+			read1->name, r1_len, read1->len);
+
+	if (check_polyA(read1->seq, r1_len))
+		return;
 
 	int ref = data->map_read(read2, data->thread_num);
 
@@ -111,7 +112,9 @@ void align_read(struct read_t *read1, struct read_t *read2,
 	int64_t umi_ref = seq2num(read1->seq + lib->umi_pos, lib->umi_len);
 
 	umi_ref = umi_ref << GENE_BIT_LEN | ref;
-	kmhash_put_bc_umi(data->bc_table, data->lock_hash, bc_idx, umi_ref);
+	pthread_mutex_lock(data->lock_hash);
+	add_bc_umi(data->bc_table, bc_idx, umi_ref, data->type);
+	pthread_mutex_unlock(data->lock_hash);
 }
 
 void *align_worker(void *thread_data)
@@ -175,7 +178,7 @@ void *align_worker(void *thread_data)
 void rna_work(struct worker_data_t worker_data)
 {
 	int i;
-	int n_threads = worker_data.opt->n_threads;
+	int n_threads = worker_data.n_threads;
 	pthread_t *worker_threads = worker_data.worker_threads;
 	pthread_attr_t *attr = worker_data.attr;
 	struct thread_data_t *thread_data = worker_data.thread_data;
@@ -193,12 +196,12 @@ void rna_work(struct worker_data_t worker_data)
 		pthread_join(worker_threads[i], NULL);
 }
 
-void process_rna(struct opt_count_t *opt, struct kmhash_t *bc_table,
+void process_rna(struct opt_count_t *opt, struct bc_hash_t *bc_table,
 		struct ref_info_t *ref)
 {
 	load_rna_index(opt->rna->ref, opt->count_intron);
 	add_rna_ref(ref);
-	process_read(opt, opt->rna, bc_table, &rna_work);
+	process_read(opt, opt->rna, bc_table, &rna_work, RNA_PRIOR);
 	print_rna_stat(opt->n_threads, opt->count_intron);
 	destroy_rna_index(opt->n_threads);
 }
@@ -210,7 +213,7 @@ void process_rna(struct opt_count_t *opt, struct kmhash_t *bc_table,
 void tag_work(struct worker_data_t worker_data)
 {
 	int i;
-	int n_threads = worker_data.opt->n_threads;
+	int n_threads = worker_data.n_threads;
 	pthread_t *worker_threads = worker_data.worker_threads;
 	pthread_attr_t *attr = worker_data.attr;
 	struct thread_data_t *thread_data = worker_data.thread_data;
@@ -229,11 +232,11 @@ void tag_work(struct worker_data_t worker_data)
 }
 
 void process_tag(struct opt_count_t *opt, struct input_t *input,
-		struct kmhash_t *bc_table, struct ref_info_t *ref, int type)
+		struct bc_hash_t *bc_table, struct ref_info_t *ref, int type)
 {
 	build_tag_ref(input, ref, type);
 
-	process_read(opt, input, bc_table, &tag_work);
+	process_read(opt, input, bc_table, &tag_work, TAG_PRIOR);
 	print_tag_stat(opt->n_threads);
 
 	destroy_tag_ref();
@@ -259,7 +262,7 @@ void single_cell(int argc, char *argv[])
 		log_write("%s ", argv[i]);
 	log_write("\n");
 
-	struct kmhash_t *bc_table = init_kmhash(KMHASH_SIZE - 1, opt->n_threads);
+	struct bc_hash_t *bc_table = init_bc_hash();
 	struct ref_info_t *ref = init_ref_info();
 
 	if (opt->rna)
@@ -276,5 +279,5 @@ void single_cell(int argc, char *argv[])
 
 	quantification(opt, bc_table, ref);
 
-	kmhash_destroy(bc_table);
+	destroy_bc_hash(bc_table);
 }

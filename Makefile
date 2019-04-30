@@ -22,7 +22,7 @@ SRC = src/alignment.c 				\
 	src/hash_table.c 			\
 	src/index.c 				\
 	src/io_utils.c 				\
-	src/kmhash.c 				\
+	src/bc_hash.c 				\
 	src/opt.c 				\
 	src/pthread_barrier.c     		\
 	src/semaphore_wrapper.c 		\

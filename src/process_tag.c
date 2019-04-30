@@ -8,10 +8,10 @@
 
 #define MAX_ERROR 	1
 
-KHASH_MAP_INIT_INT(bc, int);
+KHASH_MAP_INIT_INT(tag, int);
 
 struct tag_ref_t {
-	khash_t(bc) *h;
+	khash_t(tag) *h;
 
 	int trim;
 	char *left_pat;
@@ -79,7 +79,7 @@ int check_right_pattern(struct read_t *read, int start, char *pattern, int l)
 struct tag_ref_t *init_reference()
 {
 	struct tag_ref_t *ref = malloc(sizeof(struct tag_ref_t));
-	ref->h = kh_init(bc);
+	ref->h = kh_init(tag);
 	ref->trim = ref->ref_len = ref->left_len = ref->right_len = 0;
 	ref->left_pat = ref->right_pat = NULL;
 
@@ -122,17 +122,17 @@ void get_col_idx(int *col_idx, struct tsv_t *f)
 		__ERROR("Can not found column 'id' or 'name'. Please re-check the input file header.\n");
 }
 
-void add_hash(khash_t(bc) *h, int32_t idx, int len, int order)
+void add_hash(khash_t(tag) *h, int32_t idx, int len, int order)
 {
 	khiter_t k;
 	int32_t ret, i, tmp_idx, new_idx, ch, c;
 
-	k = kh_get(bc, h, idx);
+	k = kh_get(tag, h, idx);
 
 	if (k != kh_end(h))
 		__ERROR("There is pair of reference tags that is 1-hamming-distance away from each other");
 
-	k = kh_put(bc, h, idx, &ret);
+	k = kh_put(tag, h, idx, &ret);
 	kh_value(h, k) = order;
 
 	for (i = 0; i < len; ++i) {
@@ -143,7 +143,7 @@ void add_hash(khash_t(bc) *h, int32_t idx, int len, int order)
 				continue;
 			new_idx = tmp_idx + _pow5_r[i] * c;
 
-			k = kh_put(bc, h, new_idx, &ret);
+			k = kh_put(tag, h, new_idx, &ret);
 			kh_value(h, k) = order;
 		}
 	}
@@ -156,14 +156,18 @@ void parse_pattern(struct tag_ref_t *ref, struct content_t pattern)
 
 	len = pattern.l;
 	i = 0;
+	l = 0;
 	if (!strncmp(pattern.s, "5P", 2)) {
 		i = 2;
-		while(i < len && pattern.s[i] == 'N')
+		while(i < len && pattern.s[i] == 'N') {
+			++l;
 			++i;
+		}
+
 		if (i == len)
 			__ERROR("Invalid reference pattern %s\n", pattern.s);
 
-		trim = i;
+		trim = l;
 		len = len;
 	}
 
@@ -171,18 +175,24 @@ void parse_pattern(struct tag_ref_t *ref, struct content_t pattern)
 		if (ref->trim)
 			__ERROR("Should only 3P or 5P appear in reference pattern: %s\n", pattern.s);
 		i = len - 1;
-		while (i >= 0 && pattern.s[i] == 'N')
+		while (i >= 0 && pattern.s[i] == 'N') {
+			++l;
 			--i;
+		}
 
 		if (i < 0)
 			__ERROR("Invalid reference pattern %s\n", pattern.s);
 
-		trim = -i;
+		trim = -l;
 		len -= i;
 	}
 
-	if (ref->trim != 0 && ref->trim != trim)
-		__ERROR("There are difference types of pattern.\n");
+	if (trim) {
+		if (!ref->trim)
+			ref->trim = trim;
+		else if (ref->trim != trim)
+			__ERROR("There are difference types of pattern.\n");
+	}
 
 	l = 0;
 	while (i + l + 4 < len && pattern.s[i + l] != '(')
@@ -311,7 +321,7 @@ int align_tag(struct read_t *read, int thread_num)
 
 	tag_idx = get_tag_idx(read);
 	if (tag_idx != -1) {
-		k = kh_get(bc, tag_ref->h, tag_idx);
+		k = kh_get(tag, tag_ref->h, tag_idx);
 		if (k != kh_end(tag_ref->h)) {
 			++c->map;
 			return kh_value(tag_ref->h, k);
@@ -351,7 +361,7 @@ void print_tag_stat(int n_threads)
 
 void destroy_tag_ref()
 {
-	kh_destroy(bc, tag_ref->h);
+	kh_destroy(tag, tag_ref->h);
 	free(tag_ref);
 	free(tag_count);
 }

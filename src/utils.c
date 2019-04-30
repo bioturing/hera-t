@@ -106,3 +106,17 @@ int check_valid_nu(const char *seq, int len)
 			return 0;
 	return 1;
 }
+
+int check_polyA(char *str, int len)
+{
+	int count[2] = {0, 0};
+	int i;
+	for (i = 0; i < len; ++i)
+		if (str[i] == 'A')
+			++count[0];
+		if (str[i] == 'T')
+			++count[1];
+	if (count[0] > len/2 || count[1] > len /2)
+		return 1;
+	return 0;
+}
