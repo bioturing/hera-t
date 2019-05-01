@@ -8,7 +8,7 @@
 #define __get_gene(x) ((int)((x) & GENE_MASK))
 #define __get_umi(x) ((x) >> GENE_BIT_LEN)
 
-#define CUT_OFF 0.05
+#define CUT_OFF 0.01
 
 const uint64_t pow5_r[] = {1ull, 5ull, 25ull, 125ull, 625ull, 3125ull, 15625ull, 78125ull, 390625ull, 1953125ull, 9765625ull, 48828125ull, 244140625ull, 1220703125ull, 6103515625ull, 30517578125ull, 152587890625ull, 762939453125ull, 3814697265625ull, 19073486328125ull, 95367431640625ull, 476837158203125ull, 2384185791015625ull, 11920928955078125ull, 59604644775390625ull, 298023223876953125ull, 1490116119384765625ull};
 
@@ -141,7 +141,8 @@ void correct_barcode()
 					continue;
 
 				// ensure barcode of rna is prior
-				count = umi[iter].count + umi[iter].type * umi[0].count;
+				count = umi[iter].count +
+					(umi[iter].type & RNA_PRIOR) * umi[0].count;
 				if (count > max_count) {
 					max_count = count;
 					merge_iter = kh_get(bc_umi, h, umi[iter].idx);
