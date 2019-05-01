@@ -8,7 +8,7 @@
 #define __get_gene(x) ((int)((x) & GENE_MASK))
 #define __get_umi(x) ((x) >> GENE_BIT_LEN)
 
-#define CUT_OFF 0.01
+#define CUT_OFF 0.05
 
 const uint64_t pow5_r[] = {1ull, 5ull, 25ull, 125ull, 625ull, 3125ull, 15625ull, 78125ull, 390625ull, 1953125ull, 9765625ull, 48828125ull, 244140625ull, 1220703125ull, 6103515625ull, 30517578125ull, 152587890625ull, 762939453125ull, 3814697265625ull, 19073486328125ull, 95367431640625ull, 476837158203125ull, 2384185791015625ull, 11920928955078125ull, 59604644775390625ull, 298023223876953125ull, 1490116119384765625ull};
 
@@ -55,25 +55,37 @@ static int compare_cell(const void *a, const void *b)
 	return c_b->type == c_a->type? c_b->count - c_a->count: c_b->type - c_a->type;
 }
 
-void cut_off_barcode(int *index)
+static int compare_umi(const void *a, const void *b)
+{
+	struct umi_hash_t *c_a = (struct umi_hash_t *) a;
+	struct umi_hash_t *c_b = (struct umi_hash_t *) b;
+	if (c_a->type < RNA_PRIOR)
+		return c_b->count;
+	else if (c_b->type < RNA_PRIOR)
+		return -c_a->count;
+	else
+		return c_b->count - c_a->count;
+}
+
+void cut_off_barcode()
 {
 	int i;
-	khiter_t k;
-	khash_t(bc_umi) *h = bc_hash->h;
 	struct umi_hash_t *umi = bc_hash->umi;
 
-	n_bc = bc_hash->n_bc;
-	qsort(umi, n_bc, sizeof(struct umi_hash_t), compare_cell);
-	for (i = 0; i < n_bc; ++i) {
-		k = kh_get(bc_umi, h, umi[i].idx);
-		index[kh_value(h, k)] = i;
-	}
+	qsort(umi, n_bc, sizeof(struct umi_hash_t), compare_umi);
+	float cut_off = umi[0].count * CUT_OFF;
+	for (i = 0; i < n_bc; ++i)
+		if ((float) umi[i].count < cut_off || umi[i].type < RNA_PRIOR)
+			n_bc = i - 1;
 }
 
 void merge_bc(int bc1, int bc2)
 {
 	khiter_t k;
 	struct umi_hash_t *umi = bc_hash->umi;
+
+	if (umi[bc1].type == umi[bc2].type && umi[bc2].count / 2 < umi[bc1].count)
+		return;
 
 	khash_t(bc_umi) *h = umi[bc1].h;
 
@@ -83,20 +95,23 @@ void merge_bc(int bc1, int bc2)
 	umi[bc1].type = -bc2;
 }
 
-void correct_barcode(int *index)
+void correct_barcode()
 {
 	uint64_t bc_idx, new_bc, tmp_idx;
-	int i, k, ch, c, max_count, merge_iter, flag;
+	int i, k, ch, c, max_count, merge_iter, flag, count;
 	khiter_t iter;
 	struct umi_hash_t *umi = bc_hash->umi;
 	khash_t(bc_umi) *h = bc_hash->h;
+	int *index = malloc(bc_hash->n_bc * sizeof(int));
 
-	float cut_off = umi[0].count * CUT_OFF;
-	for (i = 0; i < n_bc; ++i)
-		if ((float) umi[i].count < cut_off || umi[i].type < umi[0].type)
-			n_bc = i - 1;
+	n_bc = bc_hash->n_bc;
+	qsort(umi, n_bc, sizeof(struct umi_hash_t), compare_cell);
+	for (i = 0; i < n_bc; ++i) {
+		k = kh_get(bc_umi, h, umi[i].idx);
+		index[kh_value(h, k)] = i;
+	}
 
-	for (i = bc_hash->n_bc; i >= n_bc ; --i) {
+	for (i = bc_hash->n_bc; i > 0 ; --i) {
 		if (umi[i].type < 0)
 			continue;
 
@@ -124,8 +139,11 @@ void correct_barcode(int *index)
 				}
 				if (flag)
 					continue;
-				if (umi[iter].count > max_count) {
-					max_count = umi[iter].count;
+
+				// ensure barcode of rna is prior
+				count = umi[iter].count + umi[iter].type * umi[0].count;
+				if (count > max_count) {
+					max_count = count;
 					merge_iter = kh_get(bc_umi, h, umi[iter].idx);
 				}
 			}
@@ -133,10 +151,7 @@ void correct_barcode(int *index)
 		if (max_count)
 			merge_bc(i, index[kh_value(h, merge_iter)]);
 	}
-
-	for (i = 0, n_bc = bc_hash->n_bc; i < n_bc; ++i)
-		if ((float) umi[i].count < cut_off || umi[i].type < umi[0].type)
-			n_bc = i - 1;
+	free(index);
 }
 
 void print_barcodes(const char *out_path)
@@ -417,12 +432,10 @@ void quantification(struct opt_count_t *opt, struct bc_hash_t *h,
 	umi_len = opt->lib.umi_len;
 	bc_hash = h;
 
-	int *index = malloc(h->n_bc * sizeof(int));
-	cut_off_barcode(index);
-	__VERBOSE("Done cutting off barcode\n");
-	correct_barcode(index);
+	correct_barcode();
 	__VERBOSE("Done correcting barcode\n");
-	free(index);
+	cut_off_barcode();
+	__VERBOSE("Done cutting off barcode\n");
 
 	int len = strlen(opt->out_dir);
 	char path[len + 20];
