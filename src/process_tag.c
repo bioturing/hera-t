@@ -18,7 +18,7 @@ struct tag_ref_t {
 	char *right_pat;
 	int left_len;
 	int right_len;
-	int ref_len;
+	int ref_len[2];
 };
 
 struct tag_stat_t {
@@ -31,45 +31,67 @@ const uint64_t _pow5_r[] = {1ull, 5ull, 25ull, 125ull, 625ull, 3125ull, 15625ull
 
 static struct tag_ref_t *tag_ref;
 
-int check_left_pattern(struct read_t *read, int start, char *pattern, int l)
+void check_left_pattern(struct read_t *read, int *range)
 {
-	int i, k, error, max_iter;
-	
-	max_iter = read->len - tag_ref->ref_len - l + 1;
+	int i, k, len, error, max_iter;
+	char *pattern = tag_ref->left_pat;
+	range[0] = range[1] = -1;
 
-	if (max_iter < start)
-		return -1;
-
-	for (i = start; i < max_iter; ++i) {
-		for (k = error = 0; k < l && error <= MAX_ERROR; ++k)
-			if (nt4_table[(int)read->seq[i + k]] != nt4_table[(int)pattern[k]])
-				++error;
-		if (k == l)
-			return start + l;
+	if (tag_ref->trim >= 0) {
+		i = tag_ref->trim;
+		len = i + tag_ref->left_len + tag_ref->right_len + tag_ref->ref_len[1];
+	} else {
+		len = read->len + tag_ref->trim;
+		i = len - tag_ref->left_len - tag_ref->right_len - tag_ref->ref_len[1];
 	}
 
-	return -1;
+	if (len < tag_ref->left_len + tag_ref->ref_len[0])
+		return;
+
+	max_iter = len - tag_ref->ref_len[0] - tag_ref->left_len;
+	for (; i <= max_iter; ++i) {
+		for (k = error = 0; k < tag_ref->left_len && error <= MAX_ERROR; ++k)
+			if (nt4_table[(int)read->seq[i + k]] != nt4_table[(int)pattern[k]])
+				++error;
+		if (k == tag_ref->left_len) {
+			range[0] = i + tag_ref->left_len;
+			range[1] = len;
+			return;
+		}
+	}
 }
 
-int check_right_pattern(struct read_t *read, int start, char *pattern, int l)
+void check_right_pattern(struct read_t *read, int *range)
 {
-	int i, k, error, max_iter;
-	
-	max_iter  = read->len - l + 1;
-	start += tag_ref->ref_len;
+	int i, k, len, error, max_iter;
+	char *pattern = tag_ref->right_pat;
+	range[0] = range[1] = -1;
 
-	if (max_iter < start)
-		return -1;
-
-	for (i = start; i < max_iter; ++i) {
-		for (k = error = 0; k < l && error <= MAX_ERROR; ++k)
-			if (nt4_table[(int)read->seq[i + k]] != nt4_table[(int)pattern[k]])
-				++error;
-		if (k == l)
-			return i - tag_ref->ref_len;
+	if (tag_ref->trim >= 0) {
+		i = tag_ref->trim;
+		len = i + tag_ref->left_len + tag_ref->right_len + tag_ref->ref_len[1];
+	} else {
+		len = read->len + tag_ref->trim;
+		i = len - tag_ref->left_len - tag_ref->right_len - tag_ref->ref_len[1];
 	}
 
-	return -1;
+	if (len < tag_ref->right_len + tag_ref->ref_len[0])
+		return ;
+
+	max_iter  = read->len - tag_ref->right_len;
+	i += tag_ref->ref_len[0];
+
+	for (; i <= max_iter; ++i) {
+		for (k = error = 0; k < tag_ref->right_len && error <= MAX_ERROR; ++k)
+			if (nt4_table[(int)read->seq[i + k]] != nt4_table[(int)pattern[k]])
+				++error;
+		if (k == tag_ref->right_len) {
+			range[0] = -(i - tag_ref->ref_len[1]);
+			range[1] = i;
+			return;
+		}
+	}
+
 }
 
 /*****************************************
@@ -80,7 +102,8 @@ struct tag_ref_t *init_reference()
 {
 	struct tag_ref_t *ref = malloc(sizeof(struct tag_ref_t));
 	ref->h = kh_init(tag);
-	ref->trim = ref->ref_len = ref->left_len = ref->right_len = 0;
+	ref->trim = ref->left_len = ref->right_len = 0;
+	ref->ref_len[0] = ref->ref_len[1] = 0;
 	ref->left_pat = ref->right_pat = NULL;
 
 	return ref;
@@ -252,6 +275,17 @@ void add_ref(struct ref_info_t *ref, struct content_t id, struct content_t name)
 	memcpy(ref->ref_text + ref->text_iter[n], name.s, name.l);
 }
 
+void add_tag_len(int len)
+{
+	if (!tag_ref->ref_len[0]) {
+		tag_ref->ref_len[0] = tag_ref->ref_len[1] = len;
+		return;
+	}
+
+	tag_ref->ref_len[0] = __min(tag_ref->ref_len[0], len);
+	tag_ref->ref_len[1] = __max(tag_ref->ref_len[1], len);
+}
+
 void build_tag_ref(struct input_t *input, struct ref_info_t *ref, int type)
 {
 	tag_ref = init_reference();
@@ -263,13 +297,11 @@ void build_tag_ref(struct input_t *input, struct ref_info_t *ref, int type)
 
 	while(get_row_content(f) > 0) {
 		value = get_col_content(f, col_idx[3]);
-		if (tag_ref->ref_len && tag_ref->ref_len != value.l)
-			__ERROR("Reference sequence lengths are not equal");
+		add_tag_len(value.l);
 
 		if (!check_valid_nu(value.s, value.l))
 			__ERROR("Reference tags sequence is not valid %s", value.s);
 
-		tag_ref->ref_len = value.l;
 		add_hash(tag_ref->h, seq2num(value.s, value.l), value.l, ref->n_refs);
 		parse_pattern(tag_ref, get_col_content(f, col_idx[2]));
 		add_ref(ref, get_col_content(f, col_idx[0]),
@@ -291,42 +323,63 @@ void init_tag_threads(int n_threads)
 	tag_count = calloc(n_threads + 1, sizeof(struct tag_stat_t));
 }
 
-int32_t get_tag_idx(struct read_t *read)
+void get_tag_range(struct read_t *read, int *range)
 {
-	int start;
-	if (tag_ref->trim >=0)
-		start = tag_ref->trim;
-	else
-		start = read->len + tag_ref->trim + 1 -
-			(tag_ref->left_len + tag_ref->right_len + tag_ref->ref_len);
-	
-	if (tag_ref->left_len)
-		start = check_left_pattern(read, start, tag_ref->left_pat, tag_ref->left_len);
-	else if (tag_ref->right_len)	
-		start = check_right_pattern(read, start, tag_ref->right_pat, tag_ref->right_len);
-
-	if (start == -1)
-		return -1;
-	return seq2num(read->seq + start, tag_ref->ref_len);
+	if (tag_ref->left_len) {
+		check_left_pattern(read, range);
+	} else if (tag_ref->right_len) {
+		check_right_pattern(read, range);
+	} else if (tag_ref->trim >= 0) {
+		range[0] = tag_ref->trim;
+		range[1] = read->len;
+	} else {
+		range[1] = read->len + tag_ref->trim;
+		range[0] = -(range[1] - tag_ref->ref_len[1]);
+	}
 }
 
 int align_tag(struct read_t *read, int thread_num)
 {
 	struct tag_stat_t *c = tag_count + (thread_num + 1);
 
-	int32_t tag_idx;
+	int32_t tag_idx, i;
+	int32_t range[2];
 	khiter_t k;
 
 	++c->nread;
 
-	tag_idx = get_tag_idx(read);
-	if (tag_idx != -1) {
-		k = kh_get(tag, tag_ref->h, tag_idx);
-		if (k != kh_end(tag_ref->h)) {
-			++c->map;
-			return kh_value(tag_ref->h, k);
+	get_tag_range(read, range);
+
+	if (range[0] == -1 || range[1] == -1) {
+		++c->unmap;
+		return -1;
+	}
+
+	if (range[0] >= 0) {
+		for (i = tag_ref->ref_len[0]; i <= tag_ref->ref_len[1]; ++i) {
+			if (range[0] + i >= range[1])
+				break;
+			tag_idx = seq2num(read->seq + range[0], i);
+			k = kh_get(tag, tag_ref->h, tag_idx);
+			if (k != kh_end(tag_ref->h)) {
+				++c->map;
+				return kh_value(tag_ref->h, k);
+			}
+		}
+	} else {
+		for (i = tag_ref->ref_len[1]; i >= tag_ref->ref_len[0]; --i) {
+			if (range[1] - i < range[0])
+				break;
+			tag_idx = seq2num(read->seq - range[0], i);
+			k = kh_get(tag, tag_ref->h, tag_idx);
+			if (k != kh_end(tag_ref->h)) {
+				++c->map;
+				return kh_value(tag_ref->h, k);
+			}
+			--range[0];
 		}
 	}
+
 
 	++c->unmap;
 	return -1;
