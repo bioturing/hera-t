@@ -1,6 +1,7 @@
 #ifndef _OPT_H_
 #define _OPT_H_
 
+#include "parse_dir.h"
 #include "library_type.h"
 
 struct opt_index_t {
@@ -13,19 +14,19 @@ struct opt_index_t {
 };
 
 struct opt_count_t {
-	int n_files;
-	char **left_file;
-	char **right_file;
+	struct library_t lib;
 	int n_threads;
-	char *index;
 	char *out_dir;
-	char *prefix;
-	char *temp_dir;
-	int is_dump_align;
 	int count_intron;
 
-	// Library type
-	struct library_t lib;
+	// gene expression
+	struct input_t *rna;
+	// cell hashing
+	struct input_t *cell;
+	// protein quant
+	struct input_t *protein;
+	// crispr
+	struct input_t *crispr;
 };
 
 void print_info();

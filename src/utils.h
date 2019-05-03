@@ -15,7 +15,6 @@
 #include "dqueue.h"
 #include "get_buffer.h"
 #include "interval_tree.h"
-#include "kmhash.h"
 #include "khash.h"
 #include "pthread_barrier.h"
 #include "library_type.h"
@@ -31,22 +30,10 @@
 #include <sys/time.h>
 #endif /* _MSC_VER */
 
-#define MAX_INT32		2147483647
-#define MIN_INT32		-2147483648
-
-#define MASK32			4294967295ULL
-
-#define BUFSZ			4096
-
 #define THREAD_STACK_SIZE	16777216
 
-#define FORWARD			0
-#define REVERSE			1
-#define LEFT			0
-#define RIGHT			1
-
-//#define WRITE_TEXT
-//#define RUN_AFTER_ANALYSIS
+#define RNA_PRIOR	4
+#define TAG_PRIOR	2
 
 /*
  * Built in macros
@@ -67,31 +54,6 @@
 				 (x) |= (x) >> 8, (x) |= (x) >> 16, ++(x))
 
 #define __is_sep(c)		((c) == ' ' || (c) == '\t')
-
-#define normalize_mapq(s)	do {					       \
-	if ((s) < 0) (s) = 0;						       \
-	if ((s) > 60) (s) = 60;						       \
-} while (0)
-
-/*
- * Built-in macros function
- */
-
-#define __ALLOC(ptr, sz)	(ptr) = xmalloc(sizeof(*(ptr)) * (sz))
-
-#define __REALLOC(ptr, sz)	(ptr) = xrealloc((ptr), sizeof(*(ptr)) * (sz))
-
-/* push back val to ptr, ptr has sz element, realloc + 1 */
-#define __PUSH_BACK(ptr, sz, val) do {					       \
-	assert((sz) >= 0);						       \
-	__REALLOC((ptr), (sz) + 1);					       \
-	(ptr)[(sz)++] = (val);						       \
-} while(0)
-
-#define __FREE_AND_NULL(ptr) do {					       \
-	free(p);							       \
-	(p) = NULL;							       \
-} while (0)
 
 #define __SWAP(x, y) do {						       \
 	assert(sizeof(x) == sizeof(y));					       \
@@ -122,68 +84,17 @@ int64_t seq2num(const char *seq, int len);
 
 /* convert from number to [ACGTN]+ to number */
 char *num2seq(int64_t num, int len);
-/*
- * Global variable
- */
+
+/* concat two strings */
+void concat_str(char *s1, int l1, char *s2, int l2);
+
+/* check if string contain N */
+int check_valid_nu(const char *seq, int len);
+
+/* check if string contain polyA */
+int check_polyA(char *str, int len);
 
 extern int8_t nt4_table[256];
 extern char *nt4_char, *rev_nt4_char;
-
-struct array_2D_t {
-	void *data;
-	int len;
-	int nrow;
-	void **rows;
-};
-
-struct producer_bundle_t {
-	int n_producer;
-	int n_files;
-	int thread_no;
-	void *streams;
-	char **left_file;
-	char **right_file;
-	int *n_consumer;
-	// void *stream;
-	pthread_barrier_t *barrier;
-	pthread_mutex_t *lock;
-	struct dqueue_t *q;
-};
-
-struct worker_bundle_t {
-	struct dqueue_t *q;
-	struct kmhash_t *bc_table;
-	pthread_mutex_t *lock_count;
-	pthread_mutex_t *lock_hash;
-	struct align_stat_t *result;
-	struct raw_alg_t *alg_array;
-	struct interval_t *intron_array;
-	struct recycle_bin_t *recycle_bin;
-	struct seed_t *seed_cons;
-	struct array_2D_t *tmp_array;
-	// struct stream_t *unmap_st;
-	struct shared_fstream_t *align_fstream;
-	struct library_t lib;
-};
-
-struct pair_buffer_t {
-	char *buf1;
-	char *buf2;
-	int input_format;
-};
-
-struct dqueue_t *init_dqueue_PE(int cap);
-
-struct pair_buffer_t *init_pair_buffer();
-
-void free_pair_buffer(struct pair_buffer_t *p);
-
-void **resize_array_2D(struct array_2D_t *p, int nrow, int ncol, int word);
-
-void init_bundle(struct worker_bundle_t *bundle);
-
-void destroy_bundle(struct worker_bundle_t *bundle);
-
-void reinit_bundle(struct worker_bundle_t *bundle);
 
 #endif /* _UTILS_H_ */

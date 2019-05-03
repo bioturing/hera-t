@@ -11,10 +11,9 @@ int main(int argc, char *argv[])
 	if (argc == 1) {
 		print_usage();
 	} else if (!strcmp(argv[1], "index")) {
-		build_index(2, argc, argv);
+		build_index(argc - 2, argv + 2);
 	} else if (!strcmp(argv[1], "count")) {
-		single_cell(2, argc, argv);
-		// quant(2, argc, argv);
+		single_cell(argc - 2, argv + 2);
 	} else {
 		fprintf(stderr, "Invalid command!\n");
 		print_usage();

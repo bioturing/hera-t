@@ -2,11 +2,23 @@
 #define _BARCODE_H_
 
 #include "attribute.h"
-#include "kmhash.h"
+#include "bc_hash.h"
 #include "opt.h"
 
-void init_barcode(struct gene_info_t *g, struct library_t lib);
+struct ref_info_t {
+	int n_refs;
+	char *ref_text;
+	int *text_iter;
+	char *ref_id;
+	int *id_iter;
+	int text_len;
+	int id_len;
+	int type[4];
+};
 
-void quantification(struct opt_count_t *opt, struct kmhash_t *h);
+struct ref_info_t *init_ref_info();
+
+void quantification(struct opt_count_t *opt, struct bc_hash_t *h,
+			struct ref_info_t *ref);
 
 #endif

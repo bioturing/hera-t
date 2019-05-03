@@ -5,16 +5,18 @@
 #include <stdint.h>
 
 // protocol index
-#define CHROMIUM3_V2		0
-#define CHROMIUM3_V3		1
+#define CHROMIUM_V2		0
+#define CHROMIUM_V3		1
 
 struct library_t {
+        int16_t bc_pos;
         int16_t bc_len;
+        int16_t umi_pos;
         int16_t umi_len;
 };
 
-int8_t check_valid_library(const int16_t type);
+struct library_t get_library(char *platform);
 
-struct library_t get_library(const int16_t type);
+struct library_t init_lib();
 
 #endif
