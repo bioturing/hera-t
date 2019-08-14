@@ -697,8 +697,10 @@ void align_chromium_read(struct read_t *read1, struct read_t *read2,
 		return;
 
 	int r1_len = bundle->lib.bc_len + bundle->lib.umi_len;
-	if (read1->len != r1_len)
+	if (read1->len < r1_len)
 		__ERROR("Read lenght of %s is not consistent with library type.\n Expect %u.\n Receive %u.\n", read1->name, r1_len, read1->len);
+	// if (read1->len != r1_len)
+	// 	__ERROR("Read lenght of %s is not consistent with library type.\n Expect %u.\n Receive %u.\n", read1->name, r1_len, read1->len);
 
 	++bundle->result->nread;
 	reinit_bundle(bundle);
