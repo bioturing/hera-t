@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#define HAVE_STRUCT_TIMESPEC
 #include <pthread.h>
 
 #include "alignment.h"
