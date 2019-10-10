@@ -1,6 +1,7 @@
 #ifndef _IO_UTILS_H_
 #define _IO_UTILS_H_
 
+#define HAVE_STRUCT_TIMESPEC
 #include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -33,9 +34,6 @@ size_t xfread(void *ptr, size_t size, size_t nmemb, FILE *stream);
 
 /* check fwrite function write enough nmemb */
 size_t xfwrite(void *ptr, size_t size, size_t nmemb, FILE *stream);
-
-/* auto remove /n character if found */
-ssize_t xgetline(char **str, size_t *size, FILE *stream);
 
 /* remove redundant / character */
 void normalize_dir(char *path);

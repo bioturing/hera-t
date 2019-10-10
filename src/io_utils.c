@@ -5,8 +5,9 @@
 #if defined(_MSC_VER)
 #include <time.h>
 #include <windows.h>
-#include <getopt.h>
+#include "getopt.h"
 #include <BaseTsd.h>
+#include <sys/stat.h>
 #else
 #include <unistd.h>
 #include <sys/resource.h>
@@ -55,21 +56,6 @@ size_t xfwrite(void *ptr, size_t size, size_t nmemb, FILE *stream)
 	return ret;
 }
 
-ssize_t xgetline(char **str, size_t *size, FILE *stream)
-{
-	ssize_t ret = -1;
-#if defined(_MSC_VER)
-	ret = _getline(str, size, stream);
-#else
-	ret = getline(str, size, stream);
-#endif
-	if (ret == 0 || ret == -1)
-		return ret;
-	if ((*str)[ret - 1] == '\n')
-		(*str)[--ret] = '\0';
-	return ret;
-}
-
 void normalize_dir(char *path)
 {
 	int len = strlen(path), i, j;
@@ -87,8 +73,8 @@ void normalize_dir(char *path)
 
 void make_dir(const char *path)
 {
-	struct stat st = {0};
-	if (stat(path, &st) == -1) {
+	struct _stat st;
+	if (_stat(path, &st) == -1) {
 		if (mkdir(path, 0700)) {
 			perror("Could not make output directory");
 			exit(EXIT_FAILURE);

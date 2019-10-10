@@ -5,11 +5,11 @@
 #include <Windows.h>
 #include <intrin.h>
 
-#define __sync_fetch_and_add32 _InterlockedAdd
+#define __sync_fetch_and_add32 _InterlockedExchangeAdd
 #define __sync_val_compare_and_swap32(ptr, a, v) _InterlockedCompareExchange(ptr, v, a)
 #define __sync_bool_compare_and_swap32(ptr, a, v) (_InterlockedCompareExchange(ptr, v, a) == (a))
 
-#define __sync_fetch_and_add64 _InterlockedAdd64
+#define __sync_fetch_and_add64 _InterlockedExchangeAdd64
 #define __sync_val_compare_and_swap64(ptr, a, v) _InterlockedCompareExchange64(ptr, v, a)
 #define __sync_bool_compare_and_swap64(ptr, a, v) (_InterlockedCompareExchange64(ptr, v, a) == (a))
 

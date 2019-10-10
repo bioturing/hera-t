@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
+#define HAVE_STRUCT_TIMESPEC
 #include <pthread.h>
 
 #include "align_attr.h"
@@ -23,7 +24,7 @@
 #if defined(_MSC_VER)
 #include <time.h>
 #include <windows.h>
-#include <getopt.h>
+#include "getopt.h"
 #include <BaseTsd.h>
 #else
 #include <unistd.h>
@@ -104,9 +105,6 @@
 /*
  * Built-in function
  */
-
-/* get time */
-double realtime();
 
 /* reverse compelemnt */
 char *get_rev_complement(const char *seq, int len);
