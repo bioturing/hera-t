@@ -8,12 +8,20 @@
 #include "getopt.h"
 #include <BaseTsd.h>
 #include <sys/stat.h>
+
+#define STAT_T struct _stat
+#define STAT_FUNC _stat
+
 #else
 #include <unistd.h>
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+
+#define STAT_T struct stat
+#define STAT_FUNC stat
+
 #endif /* _MSC_VER */
 
 #include "io_utils.h"
@@ -73,8 +81,8 @@ void normalize_dir(char *path)
 
 void make_dir(const char *path)
 {
-	struct _stat st;
-	if (_stat(path, &st) == -1) {
+	STAT_T st;
+	if (STAT_FUNC(path, &st) == -1) {
 		if (mkdir(path, 0700)) {
 			perror("Could not make output directory");
 			exit(EXIT_FAILURE);
