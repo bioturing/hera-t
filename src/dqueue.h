@@ -2,6 +2,7 @@
 #define _DQUEUE_H_
 
 #include <stdint.h>
+#define HAVE_STRUCT_TIMESPEC
 #include <pthread.h>
 
 #include "semaphore_wrapper.h"

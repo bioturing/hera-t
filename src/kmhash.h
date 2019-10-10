@@ -1,6 +1,7 @@
 #ifndef _KMHASH_H_
 #define _KMHASH_H_
 
+#define HAVE_STRUCT_TIMESPEC
 #include <pthread.h>
 #include <stdint.h>
 

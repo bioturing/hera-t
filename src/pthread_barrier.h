@@ -3,6 +3,7 @@
 #ifndef __PTHREAD_MAC_H__
 #define __PTHREAD_MAC_H__
 
+#define HAVE_STRUCT_TIMESPEC
 #include <pthread.h>
 
 typedef int pthread_barrierattr_t;

@@ -1,5 +1,5 @@
 #if defined (__APPLE__) && defined (__MACH__)
-
+#define HAVE_STRUCT_TIMESPEC
 #include <pthread.h>
 #include <errno.h>
 

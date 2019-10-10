@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#define HAVE_STRUCT_TIMESPEC
 #include <pthread.h>
 
 #include "interval_tree.h"

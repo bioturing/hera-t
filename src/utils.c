@@ -62,17 +62,6 @@ char *get_rev_complement(const char *seq, int len)
 	return ret;
 }
 
-double realtime()
-{
-	struct timeval tp;
-#if defined(_MSC_VER)
-	_gettimeofday(&tp,  NULL);
-#else
-	gettimeofday(&tp,  NULL);
-#endif
-	return tp.tv_sec + tp.tv_usec * 1e-6;
-}
-
 int64_t seq2num(const char *seq, int len)
 {
 	int64_t ret = 0;
