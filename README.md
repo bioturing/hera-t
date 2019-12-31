@@ -9,23 +9,22 @@ Hera-T is distributed under BioTuring License. See the LICENSE file for details.
 # Credit
 Hera-T is developed and maintained in BioTuring INC. by:
 
-	* Thang Tran thang.tq.139@gmail.com
-	* Thao Truong thao@bioturing.com
-	* Hy Vuong vuonghy2442@gmail.com
-	* Tan Phan tan@bioturing.com
-	* Son Pham sonpham@bioturing.com
+* Thang Tran thang.tq.139@gmail.com
+* Thao Truong thao@bioturing.com
+* Hy Vuong vuonghy2442@gmail.com
+* Tan Phan tan@bioturing.com
+* Son Pham sonpham@bioturing.com
+
 # Pre-print
 
 Thang Tran, Thao Truong, Hy Vuong, Son Pham, “Hera-T: an efficient and accurate approach for quantifying gene abundances from 10X-Chromium data with high rates of non-exonic reads”, biorXiv, 2019 doi: https://doi.org/10.1101/530501
 
-# Hera-T benchmark
-
-Below are the Spearman, Pearson, Log pearson scores of Hera-T and CellRanger using multiple data sets. For details benchmark, please refer to the pre-print of Hera-T.
-
 # How to get help
 
-A preferred way report any problems or ask questions about Hera-T is the issue tracker. Before posting an issue/question, consider to look through the FAQ and existing issues (opened and closed) - it is possible that your question has already been answered.
+A preferred way to report any problems or ask questions about Hera-T is the issue tracker. Before posting an issue/question, consider to look through the FAQs and existing issues (opened and closed) - it is possible that your question has already been answered.
+
 If you reporting a problem, please include the HeraT.log file and provide some details about your dataset (if possible).
+
 In case you prefer personal communication, please send an email to support@bioturing.com.
 
 # Change logs
