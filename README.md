@@ -38,7 +38,12 @@ Download link: `http://cf.10xgenomics.com/samples/cell-exp/3.0.0/neuron_1k_v2/ne
 -rw-rw-r--@ 1 bioturing  staff   862M Nov 14  2018 cr_mm10_210/cr_mm10_210.info
 -rw-rw-r--@ 1 bioturing  staff   356B Nov 14  2018 cr_mm10_210/cr_mm10_210.log
 
-~ » ./hera-T count -t 32 -o tmp -x cr_mm10_210/cr_mm10_210 -l 0 -1 neuron_1k_v2_fastqs/neuron_1k_v2_S1_L001_R1_001.fastq.gz neuron_1k_v2_fastqs/neuron_1k_v2_S1_L002_R1_001.fastq.gz -2 neuron_1k_v2_fastqs/neuron_1k_v2_S1_L001_R2_001.fastq.gz neuron_1k_v2_fastqs/neuron_1k_v2_S1_L002_R2_001.fastq.gz
+~ » ./hera-T count -t 32 -o tmp -x cr_mm10_210/cr_mm10_210 \
+		   -l 0 \
+		   -1 neuron_1k_v2_fastqs/neuron_1k_v2_S1_L001_R1_001.fastq.gz \
+		      neuron_1k_v2_fastqs/neuron_1k_v2_S1_L002_R1_001.fastq.gz \
+		   -2 neuron_1k_v2_fastqs/neuron_1k_v2_S1_L001_R2_001.fastq.gz \
+		      neuron_1k_v2_fastqs/neuron_1k_v2_S1_L002_R2_001.fastq.gz
 ```
 
 # Credit
