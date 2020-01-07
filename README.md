@@ -6,6 +6,41 @@ We introduce **Hera-T**, a fast and accurate tool for estimating gene abundances
 
 Hera-T is distributed under BioTuring License. See the LICENSE file for details.
 
+# Pre-built indexes
+
+* mm10: https://www.dropbox.com/s/jtonx86nyzf6tq1/cr_mm10_210.zip?dl=1
+* hg19: https://www.dropbox.com/s/ibkwo3uzqjri59m/cr_hg19_120.zip?dl=1
+* grch38: https://www.dropbox.com/s/2tcpvkyj58s4vly/cr_grch38_120.zip?dl=1
+
+# Usage
+```bash
+Usage: ./hera-T count [options] -x <idx_name> -1 <R1> -2 <R2>
+Option:
+-t	: Number of threads
+-o	: Output directory name
+-p	: Output file prefix
+-l	: Library types
+		0: 10X-Chromium 3' (v2) protocol
+		1: 10X-Chromium 3' (v3) protocol
+Example: ./hera-T count -t 32 -o ./result -x index/grch37 -l 0 -1 lane_0.read_1.fq lane_1.read_1.fq -2 lane_0.read_2.fq lane_1.read_2.fq
+```
+# Example run
+
+## 1k Brain Cells from an E18 Mouse (v2 chemistry)
+
+Download link: `http://cf.10xgenomics.com/samples/cell-exp/3.0.0/neuron_1k_v2/neuron_1k_v2_fastqs.tar`
+
+```bash
+~ » ls -lah cr_mm10_210/*
+-rw-rw-r--@ 1 bioturing  staff   2.5G Nov 14  2018 cr_mm10_210/cr_mm10_210.bwt
+-rw-rw-r--@ 1 bioturing  staff   176M Nov 14  2018 cr_mm10_210/cr_mm10_210.fasta
+-rw-rw-r--@ 1 bioturing  staff   1.8G Nov 14  2018 cr_mm10_210/cr_mm10_210.hash
+-rw-rw-r--@ 1 bioturing  staff   862M Nov 14  2018 cr_mm10_210/cr_mm10_210.info
+-rw-rw-r--@ 1 bioturing  staff   356B Nov 14  2018 cr_mm10_210/cr_mm10_210.log
+
+~ » ./hera-T count -t 32 -o tmp -x cr_mm10_210/cr_mm10_210 -l 0 -1 neuron_1k_v2_fastqs/neuron_1k_v2_S1_L001_R1_001.fastq.gz neuron_1k_v2_fastqs/neuron_1k_v2_S1_L002_R1_001.fastq.gz -2 neuron_1k_v2_fastqs/neuron_1k_v2_S1_L001_R2_001.fastq.gz neuron_1k_v2_fastqs/neuron_1k_v2_S1_L002_R2_001.fastq.gz
+```
+
 # Credit
 Hera-T is developed and maintained in BioTuring INC. by:
 
