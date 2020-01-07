@@ -12,6 +12,11 @@ Hera-T is distributed under BioTuring License. See the LICENSE file for details.
 * hg19: https://www.dropbox.com/s/ibkwo3uzqjri59m/cr_hg19_120.zip?dl=1
 * grch38: https://www.dropbox.com/s/2tcpvkyj58s4vly/cr_grch38_120.zip?dl=1
 
+# Install
+```bash
+sh ./build.sh
+```
+
 # Usage
 ```bash
 Usage: ./hera-T count [options] -x <idx_name> -1 <R1> -2 <R2>
