@@ -270,9 +270,7 @@ void *align_worker(void *data)
 				break;
 		}
 
-		pthread_mutex_lock(lock_count);
 		update_result(global_result, &own_result);
-		pthread_mutex_unlock(lock_count);
 		memset(&own_result, 0, sizeof(struct align_stat_t));
 	}
 
@@ -369,8 +367,6 @@ void update_result(struct align_stat_t *res, struct align_stat_t *add)
 	__sync_fetch_and_add64(&res->unmap, add->unmap);
 	__sync_fetch_and_add64(&res->intron, add->intron);
 	__sync_fetch_and_add64(&res->intergenic, add->intergenic);
-	if (!(res->nread % 10000000))
-		log_info("Processed %d reads", res->nread);
 }
 
 void init_bwt(const char *path, int32_t count_intron)
