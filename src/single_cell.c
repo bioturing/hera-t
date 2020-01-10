@@ -310,11 +310,7 @@ void *pair_producer_worker(void *data)
 
 	pthread_barrier_wait(bundle->barrier);
 	while (1) {
-		pthread_mutex_lock(bundle->lock);
-		int cur = *(bundle->n_consumer);
-		if (*(bundle->n_consumer) > 0)
-			--*(bundle->n_consumer);
-		pthread_mutex_unlock(bundle->lock);
+		int cur = __sync_fetch_and_add64(bundle->n_consumer, -1);
 		if (cur == 0)
 			break;
 		external_buf = d_dequeue_out(q);
