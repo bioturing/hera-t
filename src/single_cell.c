@@ -61,6 +61,7 @@ void single_cell(int pos, int argc, char *argv[])
 	struct opt_count_t *opt = get_opt_count(argc - pos, argv + pos);
 	char prefix[1024];
 	char tmp_dir[1024];
+	char cmd_buf[8192];
 	strcpy(prefix, opt->out_dir); strcat(prefix, "/");
 	strcat(prefix, opt->prefix);
 
@@ -68,11 +69,12 @@ void single_cell(int pos, int argc, char *argv[])
 	init_log(tmp_dir);
 
 	log_info("VERSION: %d.%d", PROG_VERSION_MAJOR, PROG_VERSION_MINOR);
-	log_info("COMMAND: ");
+	sprintf(cmd_buf, "COMMAND: ");
 	int i;
 	for (i = 0; i < argc; ++i)
-		log_info("%s ", argv[i]);
+		sprintf(cmd_buf + strlen(cmd_buf), "%s ", argv[i]);
 
+	log_info("%s", cmd_buf);
 	load_index(opt->index, opt->count_intron);
 
 	extern struct gene_info_t genes;
