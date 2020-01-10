@@ -17,6 +17,7 @@
 #include "opt.h"
 #include "pthread_barrier.h"
 #include "verbose.h"
+#include "log.h"
 
 static struct genome_info_t genome;
 static struct gene_info_t genes;
@@ -66,18 +67,19 @@ void single_cell(int pos, int argc, char *argv[])
 	strcpy(tmp_dir, prefix); strcat(tmp_dir, ".log");
 	init_log(tmp_dir);
 
-	log_write("VERSION: %d.%d\n", PROG_VERSION_MAJOR, PROG_VERSION_MINOR);
-	log_write("COMMAND: ");
+	log_info("VERSION: %d.%d", PROG_VERSION_MAJOR, PROG_VERSION_MINOR);
+	log_info("COMMAND: ");
 	int i;
 	for (i = 0; i < argc; ++i)
-		log_write("%s ", argv[i]);
-	log_write("\n");
+		log_info("%s ", argv[i]);
 
 	load_index(opt->index, opt->count_intron);
 
 	extern struct gene_info_t genes;
+	log_info("Init gene info struct");
 	init_barcode(&genes, opt->lib);
 
+	set_log_stage("Main");
 	single_cell_process(opt);
 }
 
@@ -431,16 +433,17 @@ void load_index(const char *prefix, int32_t count_intron)
 {
 	char tmp_dir[1024];
 	strcpy(tmp_dir, prefix); strcat(tmp_dir, ".bwt"); 
-	__VERBOSE("Loading BWT...\n");
+	log_info("Loading BWT...");
 	init_bwt(tmp_dir, count_intron);
 
 	strcpy(tmp_dir, prefix); strcat(tmp_dir, ".info");
-	__VERBOSE("Loading transcripts and genes info...\n");
+	log_info("Loading transcripts and genes info...");
 	init_ref_info(tmp_dir);
 
 	strcpy(tmp_dir, prefix); strcat(tmp_dir, ".hash");
-	__VERBOSE("Loading kmer hash table...\n");
+	log_info("Loading kmer hash table...");
 	alignment_init_hash(tmp_dir);
+	log_info("Loading index done...");
 
 	/*
 

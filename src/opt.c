@@ -4,6 +4,7 @@
 #include "opt.h"
 #include "utils.h"
 #include "verbose.h"
+#include "log.h"
 
 #if defined(_MSC_VER)
 #define __OPT_ERROR(fmt, ...) do {					       \
@@ -16,6 +17,8 @@
 	exit(EXIT_FAILURE);						       \
 } while(0)
 #endif
+
+const static char *library_str[2] = {"10X Chromium 3' - v2", "10X Chromium 3' - v3"};
 
 void print_info()
 {
@@ -267,6 +270,7 @@ struct opt_count_t *get_opt_count(int argc, char *argv[])
 			if (!check_valid_library(type))
 				__OPT_ERROR("Invalid library type");
 			opt->lib = get_library(type);
+			log_info("Library type: %s", library_str[type]);
 			pos += 2;
 		} else if (!strcmp(argv[pos], "--dump-align")) {
 			opt->is_dump_align = 1;

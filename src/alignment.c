@@ -13,6 +13,7 @@
 #include "barcode.h"
 #include "radix_sort.h"
 #include "verbose.h"
+#include "log.h"
 
 #define recycle_get_block(p, s, mask) ((p).ref_pos >> (s) & (mask))
 #define recycle_less_than(x, y) ((x).ref_pos < (y).ref_pos)
@@ -698,8 +699,10 @@ void align_chromium_read(struct read_t *read1, struct read_t *read2,
 		return;
 
 	int r1_len = bundle->lib.bc_len + bundle->lib.umi_len;
-	if (read1->len < r1_len)
-		__ERROR("Read lenght of %s is not consistent with library type.\n Expect >= %u.\n Receive %u.\n", read1->name, r1_len, read1->len);
+	if (read1->len < r1_len) {
+		log_error("Read length of %s is not consistent with library type. Expected >= %u. Receive %u.",
+		        read1->name, r1_len, read1->len);
+	}
 
 	++bundle->result->nread;
 	reinit_bundle(bundle);

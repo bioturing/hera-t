@@ -30,6 +30,7 @@ SRC = src/alignment.c 				\
       src/utils.c 				\
       src/verbose.c 				\
       src/library_type.c 			\
+      src/log.c                 \
       src/main.c
 
 OBJ = $(SRC:.c=.o)
