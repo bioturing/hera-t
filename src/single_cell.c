@@ -6,6 +6,7 @@
 #include <pthread.h>
 
 #include "interval_tree.h"
+#include "atomic.h"
 #include "alignment.h"
 #include "attribute.h"
 #include "barcode.h"
@@ -65,8 +66,8 @@ void single_cell(int pos, int argc, char *argv[])
 	strcpy(prefix, opt->out_dir); strcat(prefix, "/");
 	strcat(prefix, opt->prefix);
 
-	strcpy(tmp_dir, prefix); strcat(tmp_dir, ".log");
-	init_log(tmp_dir);
+	init_logger(0, strcat(prefix, "hera-t.log"));
+	set_log_stage("Loading Index");
 
 	log_info("VERSION: %d.%d", PROG_VERSION_MAJOR, PROG_VERSION_MINOR);
 	sprintf(cmd_buf, "COMMAND: ");
@@ -82,6 +83,7 @@ void single_cell(int pos, int argc, char *argv[])
 	init_barcode(&genes, opt->lib);
 
 	set_log_stage("Main");
+	log_info("Doing quantification");
 	single_cell_process(opt);
 }
 
@@ -362,12 +364,13 @@ void *pair_producer_worker(void *data)
 
 void update_result(struct align_stat_t *res, struct align_stat_t *add)
 {
-	res->nread	+= add->nread;
-	res->exon	+= add->exon;
-	res->unmap	+= add->unmap;
-	res->intron     += add->intron;
-	res->intergenic += add->intergenic;
-	__VERBOSE("\rNumber of processed reads: %ld", res->nread);
+	__sync_fetch_and_add64(&res->nread, add->nread);
+	__sync_fetch_and_add64(&res->exon, add->exon);
+	__sync_fetch_and_add64(&res->unmap, add->unmap);
+	__sync_fetch_and_add64(&res->intron, add->intron);
+	__sync_fetch_and_add64(&res->intergenic, add->intergenic);
+	if (!(res->nread % 10000000))
+		log_info("Processed %d reads", res->nread);
 }
 
 void init_bwt(const char *path, int32_t count_intron)

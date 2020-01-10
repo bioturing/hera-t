@@ -9,8 +9,7 @@
 
 int main(int argc, char *argv[])
 {
-	init_logger(0, "hera-t.log");
-	set_log_stage("Begin");
+
 	print_info();
 	if (argc == 1) {
 		print_usage();
