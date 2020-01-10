@@ -196,7 +196,7 @@ void single_cell_process(struct opt_count_t *opt)
 	for (i = 0; i < opt->n_threads; ++i)
 		pthread_join(worker_threads[i], NULL);
 
-	__VERBOSE("\rNumber of processed reads: %ld\n", result.nread);
+	log_info("Number of processed reads: %ld", result.nread);
 
 	destroy_shared_stream(align_fstream, opt->n_threads);
 	free_align_data();

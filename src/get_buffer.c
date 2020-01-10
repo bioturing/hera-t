@@ -29,6 +29,15 @@ static int get_format(char *file_path)
 	return ret;
 }
 
+static int64_t gb_file_get_size(const char *path)
+{
+	FILE *fp = xfopen(path, "rb");
+	fseek(fp, 0L, SEEK_END);
+	int64_t ret = ftell(fp);
+	fclose(fp);
+	return ret;
+}
+
 void gb_pair_init(struct gb_pair_data *data, char *file_path1, char *file_path2)
 {
 	if (!strcmp(file_path1, file_path2))
@@ -51,6 +60,7 @@ void gb_pair_init(struct gb_pair_data *data, char *file_path1, char *file_path2)
 	data->warning_flag = 0;
 	data->file1.processed = 0;
 	data->file2.processed = 0;
+	data->compressed_size = gb_file_get_size(file_path1) + gb_file_get_size(file_path2);
 }
 
 void gb_pair_destroy(struct gb_pair_data *data)

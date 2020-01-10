@@ -30,6 +30,7 @@ struct gb_pair_data {
 	int type;
 	int file_id;
 	int offset;
+	int compressed_size;
 };
 
 void gb_pair_init(struct gb_pair_data *data, char *file_path1, char *file_path2);

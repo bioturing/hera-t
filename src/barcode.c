@@ -9,6 +9,7 @@
 #include "kmhash.h"
 #include "verbose.h"
 #include "utils.h"
+#include "log.h"
 
 #define CUT_OFF_THRES			0.01
 
@@ -392,9 +393,9 @@ void *umi_worker(void *data)
 void quantification(struct opt_count_t *opt, struct kmhash_t *h)
 {
 	cut_off_barcode(h);
-	__VERBOSE("Done cutting off barcode\n");
+	log_info("Done cutting off barcode\n");
 	correct_barcode(h);
-	__VERBOSE("Done processing barcode\n");
+	log_info("Done processing barcode\n");
 
 	print_barcodes(opt->out_dir);
 	print_genes(opt->out_dir);
@@ -403,6 +404,7 @@ void quantification(struct opt_count_t *opt, struct kmhash_t *h)
 	strcpy(out_path, opt->out_dir);
 	strcat(out_path, "/matrix.bin");
 
+	log_info("Write bin files");
 	FILE *fbin;
 	fbin = xfopen(out_path, "wb");
 
@@ -444,6 +446,7 @@ void quantification(struct opt_count_t *opt, struct kmhash_t *h)
 	xfwrite(&n_lines, sizeof(uint64_t), 1, fbin);
 	xwfclose(fbin);
 
+	log_info("Write MTX files");
 	write_mtx(out_path, opt->out_dir);
 
 	free(t);

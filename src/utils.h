@@ -146,6 +146,7 @@ struct producer_bundle_t {
 	pthread_barrier_t *barrier;
 	pthread_mutex_t *lock;
 	struct dqueue_t *q;
+	int processed_file;
 };
 
 struct worker_bundle_t {
