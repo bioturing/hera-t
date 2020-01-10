@@ -210,15 +210,15 @@ void single_cell_process(struct opt_count_t *opt)
 
 	// quantification(opt->out_dir, opt->n_threads);
 
-	__VERBOSE_LOG("INFO", "Total number of reads               : %10ld\n", result.nread);
-	__VERBOSE_LOG("INFO", "Number of exonic mapped reads       : %10ld\n", result.exon);
+	log_info("Total number of reads               : %10ld", result.nread);
+	log_info("Number of exonic mapped reads       : %10ld", result.exon);
 	if (opt->count_intron){
-		__VERBOSE_LOG("INFO", "Number of intronic reads            : %10ld\n", result.intron);
-		__VERBOSE_LOG("INFO", "Number of intergenic reads          : %10ld\n", result.intergenic);
-	} else {
-		__VERBOSE_LOG("INFO", "Number of nonexonic reads           : %10ld\n", result.intergenic);
+		log_info("Number of intronic reads            : %10ld", result.intron);
+		log_info("Number of intergenic reads          : %10ld", result.intergenic);
+	} else  {
+		log_info("Number of nonexonic reads           : %10ld", result.intergenic);
 	}
-	__VERBOSE_LOG("INFO", "Number of unmapped reads            : %10ld\n", result.unmap);
+	log_info("Number of unmapped reads            : %10ld", result.unmap);
 }
 
 void *align_worker(void *data)
