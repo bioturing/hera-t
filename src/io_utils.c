@@ -87,7 +87,7 @@ void normalize_dir(char *path)
 
 void make_dir(const char *path)
 {
-	struct stat st = {0};
+	struct stat st;
 	if (stat(path, &st) == -1) {
 		if (mkdir(path, 0700)) {
 			perror("Could not make output directory");
