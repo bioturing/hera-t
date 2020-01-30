@@ -1,4 +1,4 @@
-CC = gcc
+CC = gcc -g
 
 CPP = cpp
 

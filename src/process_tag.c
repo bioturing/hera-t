@@ -355,6 +355,7 @@ int align_tag(struct read_t *read, int thread_num)
 		return -1;
 	}
 
+	range[0] = 0;
 	if (range[0] >= 0) {
 		for (i = tag_ref->ref_len[0]; i <= tag_ref->ref_len[1]; ++i) {
 			if (range[0] + i >= range[1])

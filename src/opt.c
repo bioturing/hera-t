@@ -244,8 +244,10 @@ int check_valid_input(struct input_t *input, char *type)
 
 void check_conflict(struct opt_count_t *opt)
 {
-	if (opt->lib.bc_pos != -1)
+	if (opt->lib.bc_pos != -1) {
+		__VERBOSE("Already has barcode pos: %d\n", opt->lib.bc_pos);
 		__ERROR("Barcode start position is defined twice, please just input only platform or barcode_start_pos\n");
+	}
 	if (opt->lib.bc_len)
 		__ERROR("Barcode length is defined twice, please just input only platform or barcode_len\n");
 	if (opt->lib.umi_pos != -1)
@@ -297,16 +299,12 @@ void parse_input_meta(struct opt_count_t *opt, char *meta_file)
 			check_conflict(opt);
 			opt->lib = get_library(value.s);
 		} else if (!strncmp(param.s, "barcode_start_pos", param.l)) {
-			check_conflict(opt);
 			opt->lib.bc_pos = atoi(value.s);
 		} else if (!strncmp(param.s, "barcode_len", param.l)) {
-			check_conflict(opt);
 			opt->lib.bc_len = atoi(value.s);
 		} else if (!strncmp(param.s, "UMI_start_pos", param.l)) {
-			check_conflict(opt);
 			opt->lib.umi_pos = atoi(value.s);
 		} else if (!strncmp(param.s, "UMI_len", param.l)) {
-			check_conflict(opt);
 			opt->lib.umi_len = atoi(value.s);
 		} else if (!strncmp(param.s, "rna_dir", param.l)) {
 			rna->in_dir = get_string(value);
