@@ -5,10 +5,14 @@
 #include "attribute.h"
 #include "verbose.h"
 #include "utils.h"
+#include "mini_hash.h"
+#include "minimizers.h"
 
 #define MAX_ERROR 	1
 
 KHASH_MAP_INIT_INT(tag, int);
+#define MINIMIZER_KMER 4
+#define MINIMIZER_WINDOW 4
 
 struct tag_ref_t {
 	khash_t(tag) *h;
@@ -19,6 +23,7 @@ struct tag_ref_t {
 	int left_len;
 	int right_len;
 	int ref_len[2];
+	struct mini_hash_t *mh;
 };
 
 struct tag_stat_t {
@@ -105,6 +110,7 @@ struct tag_ref_t *init_reference()
 	ref->trim = ref->left_len = ref->right_len = 0;
 	ref->ref_len[0] = ref->ref_len[1] = 0;
 	ref->left_pat = ref->right_pat = NULL;
+	init_mini_hash(&ref->mh, 3);
 
 	return ref;
 }
@@ -287,6 +293,21 @@ void add_tag_len(int len)
 	tag_ref->ref_len[1] = __max(tag_ref->ref_len[1], len);
 }
 
+int add_minimizer(struct mini_hash_t **h, char *s, int l, int tag)
+{
+	struct mm_db_t *db = mm_index_char_str(s, MINIMIZER_KMER, MINIMIZER_WINDOW, l);
+	int i;
+	uint64_t *slot;
+	for (i = 0; i < db->n; ++i) {
+		slot = mini_put(h, db->mm[i]);
+		if (*slot != 0)
+			*slot = TOME_STONE;
+		else
+			*slot = tag + 1; //Avoid confusion of zero: empty slot or the first tag
+	}
+	return db->n;
+}
+
 void build_tag_ref(struct input_t *input, struct ref_info_t *ref, int type)
 {
 	tag_ref = init_reference();
@@ -304,14 +325,28 @@ void build_tag_ref(struct input_t *input, struct ref_info_t *ref, int type)
 			__ERROR("Reference tags sequence is not valid %s", value.s);
 
 		add_hash(tag_ref->h, seq2num(value.s, value.l), value.l, ref->n_refs);
+		add_minimizer(&tag_ref->mh, value.s, value.l, ref->n_refs);
 		parse_pattern(tag_ref, get_col_content(f, col_idx[2]));
 		add_ref(ref, get_col_content(f, col_idx[0]),
 			get_col_content(f, col_idx[1]));
 	}
 
+	mm_stats(tag_ref->mh);
 	ref->type[type] = ref->n_refs;
 	destroy_readTSV(f);
 };
+
+void mm_stats(struct mini_hash_t *h)
+{
+	int i;
+	int n = 0, single = 0;
+	for (i = 0; i < h->size; ++i) {
+		if (h->key[i] != EMPTY_SLOT) ++n;
+		if (h->h[i] != 0 && h->h[i] != TOME_STONE) ++single;
+	}
+	__VERBOSE("Total of minimizers: %d\n", n);
+	__VERBOSE("Total of single-ton minimizers: %d\n", single);
+}
 
 /*****************************************
 *                 MAP TAGS               *
@@ -337,6 +372,46 @@ void get_tag_range(struct read_t *read, int *range)
 		range[1] = read->len + tag_ref->trim;
 		range[0] = -(range[1] - tag_ref->ref_len[1]);
 	}
+}
+
+int mm_map(struct mm_db_t *db, struct mini_hash_t *h)
+{
+	int i, n_map = 0;
+	uint64_t ref = 0;
+	uint64_t *slot;
+
+	i = 0;
+	while ((ref == 0 || ref == TOME_STONE) && i < db->n)  {
+		slot =  mini_get(h, db->mm[i]);
+		if (slot == (uint64_t *)EMPTY_SLOT)
+			++i;
+		else
+			ref = *slot;
+	}
+
+	if (ref == 0 || ref == TOME_STONE) {
+		__VERBOSE("None map\n");
+		return 0;
+	}
+
+	for (i = 0; i < db->n; ++i) {
+		slot = mini_get(h, db->mm[i]);
+		if (slot != (uint64_t *)EMPTY_SLOT) {
+			if (*slot == TOME_STONE)
+				continue;
+			if (*slot != ref) {
+				__VERBOSE("Mapped to different tag_ref\n");
+				return 0;
+			}
+			++n_map;
+		}
+	}
+
+	if (n_map > 2) {
+		__VERBOSE("Mapped with %d minimizer\n", n_map);
+		return ref;
+	}
+	return 0;
 }
 
 int align_tag(struct read_t *read, int thread_num)
@@ -365,6 +440,12 @@ int align_tag(struct read_t *read, int thread_num)
 			if (k != kh_end(tag_ref->h)) {
 				++c->map;
 				return kh_value(tag_ref->h, k);
+			}
+			struct mm_db_t *db = mm_index_char_str(read->seq + range[0], MINIMIZER_KMER, MINIMIZER_WINDOW, i);
+			int ref = mm_map(db, tag_ref->mh);
+			if (ref != 0) {
+				++c->map;
+				return ref - 1;
 			}
 		}
 	} else {
