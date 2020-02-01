@@ -12,7 +12,8 @@
 
 KHASH_MAP_INIT_INT(tag, int);
 #define MINIMIZER_KMER 4
-#define MINIMIZER_WINDOW 4
+#define MINIMIZER_WINDOW 3
+#define MIN_MM_MAP 1
 
 struct tag_ref_t {
 	khash_t(tag) *h;
@@ -389,7 +390,6 @@ int mm_map(struct mm_db_t *db, struct mini_hash_t *h)
 	}
 
 	if (ref == 0 || ref == TOME_STONE) {
-		__VERBOSE("None map\n");
 		return 0;
 	} else
 		n_map = 1;
@@ -400,18 +400,15 @@ int mm_map(struct mm_db_t *db, struct mini_hash_t *h)
 			if (*slot == TOME_STONE)
 				continue;
 			if (*slot != ref) {
-				__VERBOSE("Mapped to different tag_ref\n");
 				return 0;
 			}
 			++n_map;
 		}
 	}
 
-	if (n_map > 2) {
-		__VERBOSE("Mapped with %d minimizer\n", n_map);
+	if (n_map > MIN_MM_MAP) {
 		return ref;
 	}
-	__VERBOSE("UNammped with %d minimizers\n", n_map);
 	return 0;
 }
 
