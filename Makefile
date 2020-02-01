@@ -36,6 +36,8 @@ SRC = src/alignment.c 				\
 	src/process_rna.c 			\
 	src/process_tag.c 			\
 	src/bundles.c				\
+	src/mini_hash.c				\
+	src/minimizers.c				\
 	src/main.c
 
 OBJ = $(SRC:.c=.o)
