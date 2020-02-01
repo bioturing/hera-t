@@ -158,6 +158,7 @@ void add_hash(khash_t(tag) *h, int32_t idx, int len, int order)
 	k = kh_put(tag, h, idx, &ret);
 	kh_value(h, k) = order;
 
+	/* Add 1-hamming distance tag */
 	for (i = 0; i < len; ++i) {
 		ch = (idx / _pow5_r[i]) % 5;
 		tmp_idx = idx - ch * _pow5_r[i];
