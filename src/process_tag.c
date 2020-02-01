@@ -383,18 +383,18 @@ int mm_map(struct mm_db_t *db, struct mini_hash_t *h)
 	i = 0;
 	while ((ref == 0 || ref == TOME_STONE) && i < db->n)  {
 		slot =  mini_get(h, db->mm[i]);
-		if (slot == (uint64_t *)EMPTY_SLOT)
-			++i;
-		else
+		if (slot != (uint64_t *)EMPTY_SLOT && *slot != TOME_STONE)
 			ref = *slot;
+		++i;
 	}
 
 	if (ref == 0 || ref == TOME_STONE) {
 		__VERBOSE("None map\n");
 		return 0;
-	}
+	} else
+		n_map = 1;
 
-	for (i = 0; i < db->n; ++i) {
+	for (; i < db->n; ++i) {
 		slot = mini_get(h, db->mm[i]);
 		if (slot != (uint64_t *)EMPTY_SLOT) {
 			if (*slot == TOME_STONE)
@@ -411,6 +411,7 @@ int mm_map(struct mm_db_t *db, struct mini_hash_t *h)
 		__VERBOSE("Mapped with %d minimizer\n", n_map);
 		return ref;
 	}
+	__VERBOSE("UNammped with %d minimizers\n", n_map);
 	return 0;
 }
 
