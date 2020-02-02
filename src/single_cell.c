@@ -161,7 +161,6 @@ void *align_worker(void *thread_data)
 			if (rc1 == READ_END)
 				break;
 		}
-
 		data->print_count(data->thread_num);
 	}
 
