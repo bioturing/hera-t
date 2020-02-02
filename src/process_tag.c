@@ -1,5 +1,7 @@
 #include <pthread.h>
 
+#include "atomic.h"
+
 #include "process_tag.h"
 #include "readTSV.h"
 #include "attribute.h"
@@ -31,9 +33,9 @@ struct tag_ref_t {
 };
 
 struct tag_stat_t {
-	int64_t nread;
-	int64_t map;
-	int64_t unmap;
+	uint64_t nread;
+        uint64_t map;
+        uint64_t unmap;
 };
 
 const uint64_t _pow5_r[] = {1ull, 5ull, 25ull, 125ull, 625ull, 3125ull, 15625ull, 78125ull, 390625ull, 1953125ull, 9765625ull, 48828125ull, 244140625ull, 1220703125ull, 6103515625ull, 30517578125ull, 152587890625ull, 762939453125ull, 3814697265625ull, 19073486328125ull, 95367431640625ull, 476837158203125ull, 2384185791015625ull, 11920928955078125ull, 59604644775390625ull, 298023223876953125ull, 1490116119384765625ull};
@@ -191,8 +193,8 @@ void parse_pattern(struct tag_ref_t *ref, struct content_t pattern)
 	len = pattern.l;
 	i = 0;
 	l = 0;
-	if (!strncmp(pattern.s, "5P", 2)) {
-		i = 2;
+	if (!strncmp(pattern.s, "5P", 2) || !strncmp(pattern.s, "^", 1)) {
+		i = (!strncmp(pattern.s, "5P", 2)) ? 2 : 1;
 		while(i < len && pattern.s[i] == 'N') {
 			++l;
 			++i;
@@ -357,12 +359,7 @@ void mm_stats(struct mini_hash_t *h)
 *                 MAP TAGS               *
 *****************************************/
 
-struct tag_stat_t *tag_count;
-
-void init_tag_threads(int n_threads)
-{
-	tag_count = calloc(n_threads + 1, sizeof(struct tag_stat_t));
-}
+struct tag_stat_t tag_count;
 
 void get_tag_range(struct read_t *read, int *range)
 {
@@ -417,18 +414,17 @@ int mm_map(struct mm_db_t *db, struct mini_hash_t *h)
 
 int align_tag(struct read_t *read, int thread_num)
 {
-	struct tag_stat_t *c = tag_count + (thread_num + 1);
 
 	int32_t tag_idx, i;
 	int32_t range[2];
 	khiter_t k;
 
-	++c->nread;
+	atomic_add_and_fetch64(&(tag_count.nread), 1);
 
 	get_tag_range(read, range);
 
 	if (range[0] == -1 || range[1] == -1) {
-		++c->unmap;
+		atomic_add_and_fetch64(&(tag_count.unmap), 1);
 		return -1;
 	}
 
@@ -439,7 +435,7 @@ int align_tag(struct read_t *read, int thread_num)
 			tag_idx = seq2num(read->seq + range[0], i);
 			k = kh_get(tag, tag_ref->h, tag_idx);
 			if (k != kh_end(tag_ref->h)) {
-				++c->map;
+				atomic_add_and_fetch64(&(tag_count.map), 1);
 				return kh_value(tag_ref->h, k);
 			}
 		}
@@ -450,7 +446,7 @@ int align_tag(struct read_t *read, int thread_num)
 			tag_idx = seq2num(read->seq - range[0], i);
 			k = kh_get(tag, tag_ref->h, tag_idx);
 			if (k != kh_end(tag_ref->h)) {
-				++c->map;
+				atomic_add_and_fetch64(&(tag_count.map), 1);
 				return kh_value(tag_ref->h, k);
 			}
 			--range[0];
@@ -462,45 +458,41 @@ int align_tag(struct read_t *read, int thread_num)
 		int ref = mm_map(db, tag_ref->mh);
 		mm_db_destroy(db);
 		if (ref != 0) {
-			++c->map;
+			atomic_add_and_fetch64(&(tag_count.map), 1);
 			return ref - 1; // tag index for minimizer map is 1-based
 		}
 	}
 
-	++c->unmap;
+	atomic_add_and_fetch64(&(tag_count.unmap), 1);
 	return -1;
 }
 
-void update_tag_result(struct tag_stat_t *res, struct tag_stat_t *add)
+void init_tag_threads(int n_threads)
 {
-	res->nread += add->nread;
-	res->map += add->map;
-	res->unmap += add->unmap;
+	tag_count.nread = 0;
+	tag_count.map = 0;
+	tag_count.unmap = 0;
 }
 
 void print_tag_count(int thread_num)
 {
-	struct tag_stat_t *c = tag_count + (thread_num + 1);
-	update_tag_result(tag_count, c);
-	memset(c, 0, sizeof(struct tag_stat_t));
-	__VERBOSE("\r Mapped reads: %ld / %ld",
-			 tag_count[0].map, tag_count[0].nread);
+	uint64_t nread = atomic_val_CAS64(&tag_count.nread, 1, 1);
+	uint64_t nmap = atomic_val_CAS64(&tag_count.map, 1, 1);
+	if (!(nread % 1000000)) {
+		__VERBOSE("Mapped %llu / %llu\n", nmap, nread);
+	}
 }
 
 void print_tag_stat(int n_threads)
 {
-	int i;
-	for (i = 1; i <= n_threads; ++i)
-		update_tag_result(tag_count, tag_count + i);
 	__VERBOSE("\n");
-	__VERBOSE_LOG("INFO", "Total number of reads        : %ld\n", tag_count[0].nread);
-	__VERBOSE_LOG("INFO", "Number of mapped reads       : %ld\n", tag_count[0].map);
-	__VERBOSE_LOG("INFO", "Number of unmapped reads     : %ld\n", tag_count[0].unmap);
+	__VERBOSE_LOG("INFO", "Total number of reads        : %llu\n", tag_count.nread);
+	__VERBOSE_LOG("INFO", "Number of mapped reads       : %llu\n", tag_count.map);
+	__VERBOSE_LOG("INFO", "Number of unmapped reads     : %llu\n", tag_count.unmap);
 }
 
 void destroy_tag_ref()
 {
 	kh_destroy(tag, tag_ref->h);
 	free(tag_ref);
-	free(tag_count);
 }
