@@ -4,6 +4,8 @@
 #include <assert.h>
 #include <pthread.h>
 
+#include "atomic.h"
+
 #include "alignment.h"
 #include "dynamic_alignment.h"
 #include "genome.h"
@@ -21,6 +23,8 @@ static struct transcript_info_t trans;
 
 static int kcons;
 static uint64_t kcons_mask;
+
+extern struct align_stat_t rna_count;
 
 #define ERROR_RATIO		0.055
 #define ACCEPT_RATIO		0.65
@@ -612,13 +616,12 @@ int get_ref_idx(struct raw_alg_t *alg)
 	return gene;
 }
 
-int align_chromium_read(struct read_t *read, struct bundle_data_t *bundle,
-			struct align_stat_t *count)
+int align_chromium_read(struct read_t *read, struct bundle_data_t *bundle)
 {
 	int ret;
 	struct seed_t *s_cons;
 
-	++count->nread;
+	atomic_add_and_fetch64(&rna_count.nread, 1);
 
 	s_cons = bundle->seed_cons;
 	find_cons_seeds(read, s_cons);
@@ -629,16 +632,16 @@ int align_chromium_read(struct read_t *read, struct bundle_data_t *bundle,
 		ret = check_indel_map(read, bundle);
 
 	if (ret == 1) {
-		++count->exon;
+		atomic_add_and_fetch64(&rna_count.exon, 1);
 		//store_exon(read1, bundle->alg_array);
 		return get_ref_idx(bundle->alg_array);
 	} else if (ret == 2) {
 		// store_intron(read1, bundle->intron_array);
-		++count->intron;
+		atomic_add_and_fetch64(&rna_count.intron, 1);
 	} else if (ret == 3) {
-		++count->intergenic;
+		atomic_add_and_fetch64(&rna_count.intergenic, 1);
 	} else {
-		++count->unmap;
+		atomic_add_and_fetch64(&rna_count.unmap, 1);
 	}
 
 	return -1;
