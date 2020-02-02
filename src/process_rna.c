@@ -161,11 +161,7 @@ void update_rna_result(struct align_stat_t *res, struct align_stat_t *add)
 
 void print_rna_count(int thread_num)
 {
-	uint64_t nread = atomic_val_CAS64(&rna_count.nread, 1, 1);
-	uint64_t nmap = atomic_val_CAS64(&rna_count.exon, 1, 1);
-	if (!(nread % 1000000)) {
-		__VERBOSE("Mapped %llu / %llu\n", nmap, nread);
-	}
+	__VERBOSE("Mapped %llu / %llu\n", rna_count.exon, rna_count.nread);
 }
 
 void print_rna_stat(int n_threads, int count_intron)

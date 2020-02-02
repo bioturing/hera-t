@@ -162,9 +162,7 @@ void *align_worker(void *thread_data)
 				break;
 		}
 
-		pthread_mutex_lock(lock_count);
 		data->print_count(data->thread_num);
-		pthread_mutex_unlock(lock_count);
 	}
 
 	free_pair_buffer(own_buf);

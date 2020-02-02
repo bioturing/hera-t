@@ -476,11 +476,7 @@ void init_tag_threads(int n_threads)
 
 void print_tag_count(int thread_num)
 {
-	uint64_t nread = atomic_val_CAS64(&tag_count.nread, 1, 1);
-	uint64_t nmap = atomic_val_CAS64(&tag_count.map, 1, 1);
-	if (!(nread % 1000000)) {
-		__VERBOSE("Mapped %llu / %llu\n", nmap, nread);
-	}
+	__VERBOSE("Mapped %llu / %llu\n", tag_count.map, tag_count.nread);
 }
 
 void print_tag_stat(int n_threads)
