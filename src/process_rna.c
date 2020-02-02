@@ -161,7 +161,7 @@ void update_rna_result(struct align_stat_t *res, struct align_stat_t *add)
 
 void print_rna_count(int thread_num)
 {
-	__VERBOSE("\rMapped %llu / %llu\n", rna_count.exon, rna_count.nread);
+	__VERBOSE("\rMapped %llu / %llu", rna_count.exon, rna_count.nread);
 }
 
 void print_rna_stat(int n_threads, int count_intron)

@@ -476,7 +476,7 @@ void init_tag_threads(int n_threads)
 
 void print_tag_count(int thread_num)
 {
-	__VERBOSE("\rMapped %llu / %llu\n", tag_count.map, tag_count.nread);
+	__VERBOSE("\rMapped %llu / %llu", tag_count.map, tag_count.nread);
 }
 
 void print_tag_stat(int n_threads)
