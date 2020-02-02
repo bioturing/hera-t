@@ -202,7 +202,7 @@ void print_refs(struct ref_info_t *ref, char *out_path)
 	// Print protein measurement
 	if (ref->type[2]) {
 		for (i = start; i < ref->type[2]; ++i)
-			fprintf(fp, "%s\t%s\tProtein measurement\n",
+			fprintf(fp, "%s\t%s\tAntibody Capture\n",
 				ref->ref_id + ref->id_iter[i],
 				ref->ref_text + ref->text_iter[i]);
 

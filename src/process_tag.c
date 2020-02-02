@@ -14,6 +14,9 @@ KHASH_MAP_INIT_INT(tag, int);
 #define MINIMIZER_KMER 4
 #define MINIMIZER_WINDOW 3
 #define MIN_MM_MAP 1
+#define MIN_REF_BASE 10
+
+static int is_10x_data;
 
 struct tag_ref_t {
 	khash_t(tag) *h;
@@ -326,7 +329,8 @@ void build_tag_ref(struct input_t *input, struct ref_info_t *ref, int type)
 			__ERROR("Reference tags sequence is not valid %s", value.s);
 
 		add_hash(tag_ref->h, seq2num(value.s, value.l), value.l, ref->n_refs);
-		add_minimizer(&tag_ref->mh, value.s, value.l, ref->n_refs);
+		if (value.l > MIN_REF_BASE) //tag ref must be long enough to be index by minimizers
+			add_minimizer(&tag_ref->mh, value.s, value.l, ref->n_refs);
 		parse_pattern(tag_ref, get_col_content(f, col_idx[2]));
 		add_ref(ref, get_col_content(f, col_idx[0]),
 			get_col_content(f, col_idx[1]));
@@ -389,9 +393,9 @@ int mm_map(struct mm_db_t *db, struct mini_hash_t *h)
 		++i;
 	}
 
-	if (ref == 0 || ref == TOME_STONE) {
+	if (ref == 0 || ref == TOME_STONE)
 		return 0;
-	} else
+	else
 		n_map = 1;
 
 	for (; i < db->n; ++i) {
@@ -406,9 +410,8 @@ int mm_map(struct mm_db_t *db, struct mini_hash_t *h)
 		}
 	}
 
-	if (n_map > MIN_MM_MAP) {
+	if (n_map > MIN_MM_MAP)
 		return ref;
-	}
 	return 0;
 }
 
@@ -439,12 +442,6 @@ int align_tag(struct read_t *read, int thread_num)
 				++c->map;
 				return kh_value(tag_ref->h, k);
 			}
-			struct mm_db_t *db = mm_index_char_str(read->seq + range[0], MINIMIZER_KMER, MINIMIZER_WINDOW, i);
-			int ref = mm_map(db, tag_ref->mh);
-			if (ref != 0) {
-				++c->map;
-				return ref - 1;
-			}
 		}
 	} else {
 		for (i = tag_ref->ref_len[1]; i >= tag_ref->ref_len[0]; --i) {
@@ -459,7 +456,16 @@ int align_tag(struct read_t *read, int thread_num)
 			--range[0];
 		}
 	}
-
+	// For unmap read in 10x data
+	if (i > MIN_REF_BASE) {
+		struct mm_db_t *db = mm_index_char_str(read->seq + range[0], MINIMIZER_KMER, MINIMIZER_WINDOW, i);
+		int ref = mm_map(db, tag_ref->mh);
+		mm_db_destroy(db);
+		if (ref != 0) {
+			++c->map;
+			return ref - 1; // tag index for minimizer map is 1-based
+		}
+	}
 
 	++c->unmap;
 	return -1;
