@@ -491,6 +491,6 @@ void print_tag_stat(int n_threads)
 
 void destroy_tag_ref()
 {
-	kh_destroy(tag, tag_ref->h);
+	destroy_mini_hash(tag_ref->h);
 	free(tag_ref);
 }
