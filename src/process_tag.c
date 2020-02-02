@@ -21,7 +21,7 @@ KHASH_MAP_INIT_INT(tag, int);
 static int is_10x_data;
 
 struct tag_ref_t {
-	khash_t(tag) *h;
+	struct mini_hash_t *h;
 
 	int trim;
 	char *left_pat;
@@ -112,7 +112,7 @@ void check_right_pattern(struct read_t *read, int *range)
 struct tag_ref_t *init_reference()
 {
 	struct tag_ref_t *ref = malloc(sizeof(struct tag_ref_t));
-	ref->h = kh_init(tag);
+	init_mini_hash(&ref->h, 3);
 	ref->trim = ref->left_len = ref->right_len = 0;
 	ref->ref_len[0] = ref->ref_len[1] = 0;
 	ref->left_pat = ref->right_pat = NULL;
@@ -157,18 +157,19 @@ void get_col_idx(int *col_idx, struct tsv_t *f)
 		__ERROR("Can not found column 'id' or 'name'. Please re-check the input file header.\n");
 }
 
-void add_hash(khash_t(tag) *h, int32_t idx, int len, int order)
+void add_hash(struct mini_hash_t **h_ptr, int32_t idx, int len, int order)
 {
-	khiter_t k;
+	uint64_t *slot;
+	struct mini_hash_t *h = *h_ptr;
 	int32_t ret, i, tmp_idx, new_idx, ch, c;
 
-	k = kh_get(tag, h, idx);
+	slot = mini_get(h, idx);
 
-	if (k != kh_end(h))
+	if (slot != (uint64_t *)EMPTY_SLOT)
 		__ERROR("There is pair of reference tags that is 1-hamming-distance away from each other");
 
-	k = kh_put(tag, h, idx, &ret);
-	kh_value(h, k) = order;
+	slot = mini_put(h_ptr, idx);
+	*slot = order;
 
 	/* Add 1-hamming distance tag */
 	for (i = 0; i < len; ++i) {
@@ -179,8 +180,8 @@ void add_hash(khash_t(tag) *h, int32_t idx, int len, int order)
 				continue;
 			new_idx = tmp_idx + _pow5_r[i] * c;
 
-			k = kh_put(tag, h, new_idx, &ret);
-			kh_value(h, k) = order;
+			slot = mini_put(h_ptr, new_idx);
+			*slot = order;
 		}
 	}
 }
@@ -330,7 +331,7 @@ void build_tag_ref(struct input_t *input, struct ref_info_t *ref, int type)
 		if (!check_valid_nu(value.s, value.l))
 			__ERROR("Reference tags sequence is not valid %s", value.s);
 
-		add_hash(tag_ref->h, seq2num(value.s, value.l), value.l, ref->n_refs);
+		add_hash(&tag_ref->h, seq2num(value.s, value.l), value.l, ref->n_refs);
 		if (value.l > MIN_REF_BASE) //tag ref must be long enough to be index by minimizers
 			add_minimizer(&tag_ref->mh, value.s, value.l, ref->n_refs);
 		parse_pattern(tag_ref, get_col_content(f, col_idx[2]));
@@ -418,6 +419,7 @@ int align_tag(struct read_t *read, int thread_num)
 	int32_t tag_idx, i;
 	int32_t range[2];
 	khiter_t k;
+	uint64_t *slot;
 
 	atomic_add_and_fetch64(&(tag_count.nread), 1);
 
@@ -433,10 +435,10 @@ int align_tag(struct read_t *read, int thread_num)
 			if (range[0] + i >= range[1])
 				break;
 			tag_idx = seq2num(read->seq + range[0], i);
-			k = kh_get(tag, tag_ref->h, tag_idx);
-			if (k != kh_end(tag_ref->h)) {
+			slot = mini_get(tag_ref->h, tag_idx);
+			if (slot != (uint64_t *)EMPTY_SLOT) {
 				atomic_add_and_fetch64(&(tag_count.map), 1);
-				return kh_value(tag_ref->h, k);
+				return *slot;
 			}
 		}
 	} else {
@@ -444,10 +446,10 @@ int align_tag(struct read_t *read, int thread_num)
 			if (range[1] - i < range[0])
 				break;
 			tag_idx = seq2num(read->seq - range[0], i);
-			k = kh_get(tag, tag_ref->h, tag_idx);
-			if (k != kh_end(tag_ref->h)) {
+			slot = mini_get(tag_ref->h, tag_idx);
+			if (slot != (uint64_t *)EMPTY_SLOT) {
 				atomic_add_and_fetch64(&(tag_count.map), 1);
-				return kh_value(tag_ref->h, k);
+				return *slot;
 			}
 			--range[0];
 		}
