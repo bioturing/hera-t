@@ -101,6 +101,15 @@ void merge_bc(int bc1, int bc2)
 	umi[bc1].type = -bc2; //mark cell bc1 as dead
 }
 
+void find_dead_cell(struct umi_hash_t *umi, int n)
+{
+	for (int i = 0; i < n; ++i) {
+		if (umi[i].type < 0)  {
+			__VERBOSE("Total number of live cells: %d\n", i);
+		}
+	}
+}
+
 void correct_barcode()
 {
 	uint64_t bc_idx, new_bc, tmp_idx;
@@ -112,6 +121,7 @@ void correct_barcode()
 
 	n_bc = bc_hash->n_bc;
 	qsort(umi, n_bc, sizeof(struct umi_hash_t), compare_cell);
+	find_dead_cell(umi, n_bc);
 	for (i = 0; i < n_bc; ++i) {
 		slot = mini_get(h, umi[i].idx);
 		index[*slot] = i;
@@ -439,6 +449,8 @@ void quantification(struct opt_count_t *opt, struct bc_hash_t *h,
 	umi_len = opt->lib.umi_len;
 	bc_hash = h;
 	ngenes = ref->n_rna;
+
+	__VERBOSE("Number of genes: %d\n", ngenes);
 
 	correct_barcode();
 	__VERBOSE("Done correcting barcode\n");
