@@ -25,11 +25,13 @@ struct umi_bundle_t {
 int32_t n_bc;
 int16_t bc_len, umi_len;
 struct bc_hash_t *bc_hash;
+int ngenes;
 
 struct ref_info_t *init_ref_info()
 {
 	struct ref_info_t *ref = malloc(sizeof(struct ref_info_t));
 	ref->n_refs = 0;
+	ref->n_rna = 0;
 	ref->text_iter = malloc(1);
 	ref->ref_text = malloc(1);
 	ref->ref_id = malloc(1);
@@ -95,7 +97,7 @@ void merge_bc(int bc1, int bc2)
 
 	for (k = kh_begin(h); k != kh_end(h); ++k)
 		if (kh_exist(h, k))
-			add_umi(umi + bc2, kh_key(h, k), kh_value(h, k), RNA_PRIOR); //add umit count from bc2 to bc1
+			add_umi(umi + bc2, kh_key(h, k), 1, __get_gene(kh_key(h, k)) < ngenes ? RNA_PRIOR : -1); //add umit count from bc2 to bc1
 	umi[bc1].type = -bc2; //mark cell bc1 as dead
 }
 
@@ -307,7 +309,7 @@ void count_genes(struct umi_hash_t *umi, int bc_pos, int *cnt, int n_refs,
 	memset(cnt, 0, n_refs * sizeof(int));
 	for (k = kh_begin(h); k != kh_end(h); ++k)
 		if (kh_exist(h, k) && kh_value(h, k) > 0)
-			++cnt[__get_gene(kh_key(h, k))];
+			++cnt[__get_gene(kh_key(h, k))]; //only count 1 unique UMI once
 
 	pthread_mutex_lock(lock);
 	for (i = 1; i <= n_refs; ++i) {
@@ -436,6 +438,7 @@ void quantification(struct opt_count_t *opt, struct bc_hash_t *h,
 	bc_len = opt->lib.bc_len;
 	umi_len = opt->lib.umi_len;
 	bc_hash = h;
+	ngenes = ref->n_rna;
 
 	correct_barcode();
 	__VERBOSE("Done correcting barcode\n");

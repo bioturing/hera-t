@@ -7,6 +7,7 @@
 
 struct ref_info_t {
 	int n_refs;
+	int n_rna;
 	char *ref_text;
 	int *text_iter;
 	char *ref_id;
