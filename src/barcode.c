@@ -80,9 +80,15 @@ void cut_off_barcode()
 	float cut_off = umi[0].count * CUT_OFF;
 	__VERBOSE("Cut off threshold: %.2f\n", cut_off);
 	for (i = 0; i < n_bc; ++i)
-		if ((float) umi[i].count < cut_off || umi[i].type < RNA_PRIOR)
+		if ((float) umi[i].count < cut_off) {
 			n_bc = i - 1;
-	__VERBOSE("Number of cells after cut off: %d\n", n_bc);
+			__VERBOSE("Library size smaller than cutoff: %.2f vs %.2f\n", (float) umi[i].count, cut_off);
+		}
+		if (umi[i].type < RNA_PRIOR) {
+			n_bc = i - 1;
+			__VERBOSE("Dead cells at %d\n", n_bc);
+		}
+	__VERBOSE("Number of live cells: %d\n", n_bc);
 }
 
 void merge_bc(int bc1, int bc2)
@@ -105,7 +111,7 @@ void find_dead_cell(struct umi_hash_t *umi, int n)
 {
 	for (int i = 0; i < n; ++i) {
 		if (umi[i].type < 0)  {
-			__VERBOSE("Total number of live cells: %d\n", i);
+			__VERBOSE("Total number of live cells after sort by comparing cells: %d\n", i);
 		}
 	}
 }
@@ -158,7 +164,7 @@ void correct_barcode()
 					continue;
 
 				// ensure barcode of rna is prior
-				count = umi[iter].count;
+				count = umi[iter].count + (umi[iter].type & RNA_PRIOR) * umi[0].count;
 				if (count > max_count) {
 					max_count = count;
 					merge_iter = mini_get(h, umi[iter].idx);
