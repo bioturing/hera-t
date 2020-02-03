@@ -91,7 +91,7 @@ void merge_bc(int bc1, int bc2)
 
 	for (k = kh_begin(h); k != kh_end(h); ++k)
 		if (kh_exist(h, k))
-			add_umi(umi + bc2, kh_key(h, k), kh_value(h, k));
+			add_umi(umi + bc2, kh_key(h, k), kh_value(h, k), RNA_PRIOR);
 	umi[bc1].type = -bc2;
 }
 
