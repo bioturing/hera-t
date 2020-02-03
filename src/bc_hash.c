@@ -1,4 +1,5 @@
 #include "bc_hash.h"
+#include "utils.h"
 
 struct bc_hash_t *init_bc_hash()
 {
@@ -34,7 +35,7 @@ int32_t get_bc(struct bc_hash_t *bc_hash, int64_t bc)
 	return n;
 }
 
-void add_umi(struct umi_hash_t *umi, int64_t umi_ref, int32_t incr)
+void add_umi(struct umi_hash_t *umi, int64_t umi_ref, int32_t incr, int type)
 {
 	khiter_t k;
 	int32_t ret;
@@ -45,7 +46,8 @@ void add_umi(struct umi_hash_t *umi, int64_t umi_ref, int32_t incr)
 	if (k == kh_end(h)) {
 		k = kh_put(bc_umi, h, umi_ref, &ret);
 		kh_value(h, k) = 0;
-		++umi->count;
+		if (type == RNA_PRIOR)
+			++umi->count;
 	}
 	
 	kh_value(h, k) += incr;
@@ -56,7 +58,7 @@ void add_bc_umi(struct bc_hash_t *bc_hash, int64_t bc, int64_t umi_ref, int32_t 
 	int32_t idx = get_bc(bc_hash, bc);
 	bc_hash->umi[idx].type |= type;
 
-	add_umi(bc_hash->umi + idx, umi_ref, 1);
+	add_umi(bc_hash->umi + idx, umi_ref, 1, type);
 }
 
 void destroy_bc_hash(struct bc_hash_t *bc_hash)

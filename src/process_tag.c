@@ -1,5 +1,7 @@
 #include <pthread.h>
 
+#include "atomic.h"
+
 #include "process_tag.h"
 #include "readTSV.h"
 #include "attribute.h"
@@ -19,7 +21,7 @@ KHASH_MAP_INIT_INT(tag, int);
 static int is_10x_data;
 
 struct tag_ref_t {
-	khash_t(tag) *h;
+	struct mini_hash_t *h;
 
 	int trim;
 	char *left_pat;
@@ -31,9 +33,9 @@ struct tag_ref_t {
 };
 
 struct tag_stat_t {
-	int64_t nread;
-	int64_t map;
-	int64_t unmap;
+	uint64_t nread;
+        uint64_t map;
+        uint64_t unmap;
 };
 
 const uint64_t _pow5_r[] = {1ull, 5ull, 25ull, 125ull, 625ull, 3125ull, 15625ull, 78125ull, 390625ull, 1953125ull, 9765625ull, 48828125ull, 244140625ull, 1220703125ull, 6103515625ull, 30517578125ull, 152587890625ull, 762939453125ull, 3814697265625ull, 19073486328125ull, 95367431640625ull, 476837158203125ull, 2384185791015625ull, 11920928955078125ull, 59604644775390625ull, 298023223876953125ull, 1490116119384765625ull};
@@ -110,7 +112,7 @@ void check_right_pattern(struct read_t *read, int *range)
 struct tag_ref_t *init_reference()
 {
 	struct tag_ref_t *ref = malloc(sizeof(struct tag_ref_t));
-	ref->h = kh_init(tag);
+	init_mini_hash(&ref->h, 3);
 	ref->trim = ref->left_len = ref->right_len = 0;
 	ref->ref_len[0] = ref->ref_len[1] = 0;
 	ref->left_pat = ref->right_pat = NULL;
@@ -155,18 +157,19 @@ void get_col_idx(int *col_idx, struct tsv_t *f)
 		__ERROR("Can not found column 'id' or 'name'. Please re-check the input file header.\n");
 }
 
-void add_hash(khash_t(tag) *h, int32_t idx, int len, int order)
+void add_hash(struct mini_hash_t **h_ptr, int32_t idx, int len, int order)
 {
-	khiter_t k;
+	uint64_t *slot;
+	struct mini_hash_t *h = *h_ptr;
 	int32_t ret, i, tmp_idx, new_idx, ch, c;
 
-	k = kh_get(tag, h, idx);
+	slot = mini_get(h, idx);
 
-	if (k != kh_end(h))
+	if (slot != (uint64_t *)EMPTY_SLOT)
 		__ERROR("There is pair of reference tags that is 1-hamming-distance away from each other");
 
-	k = kh_put(tag, h, idx, &ret);
-	kh_value(h, k) = order;
+	slot = mini_put(h_ptr, idx);
+	*slot = order;
 
 	/* Add 1-hamming distance tag */
 	for (i = 0; i < len; ++i) {
@@ -177,8 +180,8 @@ void add_hash(khash_t(tag) *h, int32_t idx, int len, int order)
 				continue;
 			new_idx = tmp_idx + _pow5_r[i] * c;
 
-			k = kh_put(tag, h, new_idx, &ret);
-			kh_value(h, k) = order;
+			slot = mini_put(h_ptr, new_idx);
+			*slot = order;
 		}
 	}
 }
@@ -191,8 +194,8 @@ void parse_pattern(struct tag_ref_t *ref, struct content_t pattern)
 	len = pattern.l;
 	i = 0;
 	l = 0;
-	if (!strncmp(pattern.s, "5P", 2)) {
-		i = 2;
+	if (!strncmp(pattern.s, "5P", 2) || !strncmp(pattern.s, "^", 1)) {
+		i = (!strncmp(pattern.s, "5P", 2)) ? 2 : 1;
 		while(i < len && pattern.s[i] == 'N') {
 			++l;
 			++i;
@@ -328,7 +331,7 @@ void build_tag_ref(struct input_t *input, struct ref_info_t *ref, int type)
 		if (!check_valid_nu(value.s, value.l))
 			__ERROR("Reference tags sequence is not valid %s", value.s);
 
-		add_hash(tag_ref->h, seq2num(value.s, value.l), value.l, ref->n_refs);
+		add_hash(&tag_ref->h, seq2num(value.s, value.l), value.l, ref->n_refs);
 		if (value.l > MIN_REF_BASE) //tag ref must be long enough to be index by minimizers
 			add_minimizer(&tag_ref->mh, value.s, value.l, ref->n_refs);
 		parse_pattern(tag_ref, get_col_content(f, col_idx[2]));
@@ -357,12 +360,7 @@ void mm_stats(struct mini_hash_t *h)
 *                 MAP TAGS               *
 *****************************************/
 
-struct tag_stat_t *tag_count;
-
-void init_tag_threads(int n_threads)
-{
-	tag_count = calloc(n_threads + 1, sizeof(struct tag_stat_t));
-}
+struct tag_stat_t tag_count;
 
 void get_tag_range(struct read_t *read, int *range)
 {
@@ -417,18 +415,18 @@ int mm_map(struct mm_db_t *db, struct mini_hash_t *h)
 
 int align_tag(struct read_t *read, int thread_num)
 {
-	struct tag_stat_t *c = tag_count + (thread_num + 1);
 
 	int32_t tag_idx, i;
 	int32_t range[2];
 	khiter_t k;
+	uint64_t *slot;
 
-	++c->nread;
+	atomic_add_and_fetch64(&(tag_count.nread), 1);
 
 	get_tag_range(read, range);
 
 	if (range[0] == -1 || range[1] == -1) {
-		++c->unmap;
+		atomic_add_and_fetch64(&(tag_count.unmap), 1);
 		return -1;
 	}
 
@@ -437,10 +435,10 @@ int align_tag(struct read_t *read, int thread_num)
 			if (range[0] + i >= range[1])
 				break;
 			tag_idx = seq2num(read->seq + range[0], i);
-			k = kh_get(tag, tag_ref->h, tag_idx);
-			if (k != kh_end(tag_ref->h)) {
-				++c->map;
-				return kh_value(tag_ref->h, k);
+			slot = mini_get(tag_ref->h, tag_idx);
+			if (slot != (uint64_t *)EMPTY_SLOT) {
+				atomic_add_and_fetch64(&(tag_count.map), 1);
+				return *slot;
 			}
 		}
 	} else {
@@ -448,10 +446,10 @@ int align_tag(struct read_t *read, int thread_num)
 			if (range[1] - i < range[0])
 				break;
 			tag_idx = seq2num(read->seq - range[0], i);
-			k = kh_get(tag, tag_ref->h, tag_idx);
-			if (k != kh_end(tag_ref->h)) {
-				++c->map;
-				return kh_value(tag_ref->h, k);
+			slot = mini_get(tag_ref->h, tag_idx);
+			if (slot != (uint64_t *)EMPTY_SLOT) {
+				atomic_add_and_fetch64(&(tag_count.map), 1);
+				return *slot;
 			}
 			--range[0];
 		}
@@ -462,45 +460,37 @@ int align_tag(struct read_t *read, int thread_num)
 		int ref = mm_map(db, tag_ref->mh);
 		mm_db_destroy(db);
 		if (ref != 0) {
-			++c->map;
+			atomic_add_and_fetch64(&(tag_count.map), 1);
 			return ref - 1; // tag index for minimizer map is 1-based
 		}
 	}
 
-	++c->unmap;
+	atomic_add_and_fetch64(&(tag_count.unmap), 1);
 	return -1;
 }
 
-void update_tag_result(struct tag_stat_t *res, struct tag_stat_t *add)
+void init_tag_threads(int n_threads)
 {
-	res->nread += add->nread;
-	res->map += add->map;
-	res->unmap += add->unmap;
+	tag_count.nread = 0;
+	tag_count.map = 0;
+	tag_count.unmap = 0;
 }
 
 void print_tag_count(int thread_num)
 {
-	struct tag_stat_t *c = tag_count + (thread_num + 1);
-	update_tag_result(tag_count, c);
-	memset(c, 0, sizeof(struct tag_stat_t));
-	__VERBOSE("\r Mapped reads: %ld / %ld",
-			 tag_count[0].map, tag_count[0].nread);
+	__VERBOSE("\rMapped %llu / %llu", tag_count.map, tag_count.nread);
 }
 
 void print_tag_stat(int n_threads)
 {
-	int i;
-	for (i = 1; i <= n_threads; ++i)
-		update_tag_result(tag_count, tag_count + i);
 	__VERBOSE("\n");
-	__VERBOSE_LOG("INFO", "Total number of reads        : %ld\n", tag_count[0].nread);
-	__VERBOSE_LOG("INFO", "Number of mapped reads       : %ld\n", tag_count[0].map);
-	__VERBOSE_LOG("INFO", "Number of unmapped reads     : %ld\n", tag_count[0].unmap);
+	__VERBOSE_LOG("INFO", "Total number of reads        : %llu\n", tag_count.nread);
+	__VERBOSE_LOG("INFO", "Number of mapped reads       : %llu\n", tag_count.map);
+	__VERBOSE_LOG("INFO", "Number of unmapped reads     : %llu\n", tag_count.unmap);
 }
 
 void destroy_tag_ref()
 {
-	kh_destroy(tag, tag_ref->h);
+	destroy_mini_hash(tag_ref->h);
 	free(tag_ref);
-	free(tag_count);
 }

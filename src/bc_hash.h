@@ -22,7 +22,7 @@ struct bc_hash_t *init_bc_hash();
 
 void add_bc_umi(struct bc_hash_t *h, int64_t bc, int64_t umi_ref, int type);
 
-void add_umi(struct umi_hash_t *umi, int64_t umi_ref, int32_t incr);
+void add_umi(struct umi_hash_t *umi, int64_t umi_ref, int32_t incr, int type);
 
 void destroy_bc_hash(struct bc_hash_t *h);
 
