@@ -4,6 +4,7 @@
 #include "io_utils.h"
 #include "verbose.h"
 #include "utils.h"
+#include "mini_hash.h"
 
 #define __get_gene(x) ((int)((x) & GENE_MASK))
 #define __get_umi(x) ((x) >> GENE_BIT_LEN)
@@ -98,17 +99,17 @@ void merge_bc(int bc1, int bc2)
 void correct_barcode()
 {
 	uint64_t bc_idx, new_bc, tmp_idx;
-	int i, k, ch, c, max_count, merge_iter, flag, count;
-	khiter_t iter;
+	int i, k, ch, c, max_count, flag, count, iter;
 	struct umi_hash_t *umi = bc_hash->umi;
-	khash_t(bc_umi) *h = bc_hash->h;
+	struct mini_hash_t *h = bc_hash->h;
 	int *index = malloc(bc_hash->n_bc * sizeof(int));
+	uint64_t *slot, *merge_iter = NULL;
 
 	n_bc = bc_hash->n_bc;
 	qsort(umi, n_bc, sizeof(struct umi_hash_t), compare_cell);
 	for (i = 0; i < n_bc; ++i) {
-		k = kh_get(bc_umi, h, umi[i].idx);
-		index[kh_value(h, k)] = i;
+		slot = mini_get(h, umi[i].idx);
+		index[*slot] = i;
 	}
 
 	for (i = bc_hash->n_bc; i > 0 ; --i) {
@@ -125,11 +126,12 @@ void correct_barcode()
 				if (ch == c)
 					continue;
 				new_bc = tmp_idx + pow5_r[k] * c;
-				iter = kh_get(bc_umi, h, new_bc);
-				if (iter == kh_end(h))
+				slot = mini_get(h, new_bc);
+
+				if (slot == (uint64_t *)EMPTY_SLOT)
 					continue;
 
-				iter = index[kh_value(h, iter)];
+				iter = index[*slot];
 				while (umi[iter].type < 0) {
 					if (i == -umi[iter].type){
 						flag = 1;
@@ -145,12 +147,12 @@ void correct_barcode()
 					(umi[iter].type & RNA_PRIOR) * umi[0].count;
 				if (count > max_count) {
 					max_count = count;
-					merge_iter = kh_get(bc_umi, h, umi[iter].idx);
+					merge_iter = mini_get(h, umi[iter].idx);
 				}
 			}
 		}
 		if (max_count)
-			merge_bc(i, index[kh_value(h, merge_iter)]);
+			merge_bc(i, index[*merge_iter]);
 	}
 	free(index);
 }
