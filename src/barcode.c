@@ -74,10 +74,13 @@ void cut_off_barcode()
 	struct umi_hash_t *umi = bc_hash->umi;
 
 	qsort(umi, n_bc, sizeof(struct umi_hash_t), compare_umi);
+	__VERBOSE("Largest library size (RNA): %d\n", umi[0].count);
 	float cut_off = umi[0].count * CUT_OFF;
+	__VERBOSE("Cut off threshold: %.2f\n", cut_off);
 	for (i = 0; i < n_bc; ++i)
 		if ((float) umi[i].count < cut_off || umi[i].type < RNA_PRIOR)
 			n_bc = i - 1;
+	__VERBOSE("Number of cells after cut off: %d\n", n_bc);
 }
 
 void merge_bc(int bc1, int bc2)
@@ -92,8 +95,8 @@ void merge_bc(int bc1, int bc2)
 
 	for (k = kh_begin(h); k != kh_end(h); ++k)
 		if (kh_exist(h, k))
-			add_umi(umi + bc2, kh_key(h, k), kh_value(h, k), RNA_PRIOR);
-	umi[bc1].type = -bc2;
+			add_umi(umi + bc2, kh_key(h, k), kh_value(h, k), RNA_PRIOR); //add umit count from bc2 to bc1
+	umi[bc1].type = -bc2; //mark cell bc1 as dead
 }
 
 void correct_barcode()
@@ -122,7 +125,7 @@ void correct_barcode()
 			flag = 0;
 			ch = (bc_idx / pow5_r[k]) % 5;
 			tmp_idx = bc_idx - ch * pow5_r[k];
-			for (c = 0; c < NNU; ++c) {
+			for (c = 0; c < NNU; ++c) { //merge other 1-hamming distance barcodes
 				if (ch == c)
 					continue;
 				new_bc = tmp_idx + pow5_r[k] * c;
@@ -143,8 +146,7 @@ void correct_barcode()
 					continue;
 
 				// ensure barcode of rna is prior
-				count = umi[iter].count +
-					(umi[iter].type & RNA_PRIOR) * umi[0].count;
+				count = umi[iter].count;
 				if (count > max_count) {
 					max_count = count;
 					merge_iter = mini_get(h, umi[iter].idx);
