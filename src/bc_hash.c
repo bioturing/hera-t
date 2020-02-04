@@ -51,8 +51,7 @@ void add_umi(struct umi_hash_t *umi, int64_t umi_ref, int32_t incr, int type)
 			++umi->count;
 	}
 
-	if (type == RNA_PRIOR)
-		kh_value(h, k) += incr;
+	kh_value(h, k) += incr;
 }
 
 void add_bc_umi(struct bc_hash_t *bc_hash, int64_t bc, int64_t umi_ref, int32_t type)

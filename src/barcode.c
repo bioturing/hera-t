@@ -489,6 +489,7 @@ void quantification(struct opt_count_t *opt, struct bc_hash_t *h,
 	basic_bc_stat();
 	correct_barcode();
 	__VERBOSE("Done correcting barcode\n");
+	basic_bc_stat();
 	cut_off_barcode();
 	__VERBOSE("Done cutting off barcode\n");
 
