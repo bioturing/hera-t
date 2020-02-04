@@ -141,7 +141,7 @@ void correct_barcode()
 	}
 
 	for (i = bc_hash->n_bc; i > 0 ; --i) {
-		if (umi[i].type < 0)
+		if (umi[i].type < 0 || !(umi[i].type & RNA_PRIOR))
 			continue;
 
 		bc_idx = umi[i].idx;
