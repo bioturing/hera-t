@@ -483,7 +483,7 @@ void basic_bc_stat()
 void print_top_ten()
 {
 	for (int i = 0; i < 10; ++i) {
-		__VERBOSE("Library size of the %d cell: %d\n", i, bc_hash->umi[i].count);
+		__VERBOSE("Library size of the %d cell: %d, barcode %s\n", i, bc_hash->umi[i].count, num2seq(bc_hash->umi[i].idx, bc_len));
 	}
 }
 
