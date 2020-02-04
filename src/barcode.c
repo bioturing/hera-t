@@ -101,6 +101,9 @@ void merge_bc(int bc1, int bc2)
 	if (umi[bc1].type == umi[bc2].type && umi[bc2].count / 2 < umi[bc1].count)
 		return;
 
+	if (umi[bc1].type != umi[bc2].type)
+		return;
+
 	khash_t(bc_umi) *h = umi[bc1].h;
 
 	for (k = kh_begin(h); k != kh_end(h); ++k)
