@@ -125,7 +125,7 @@ void print_stat_merge(int bc1, int bc2, struct umi_hash_t *umi)
 {
 	char *bc_str1 = num2seq(umi[bc1].idx, bc_len);
 	char *bc_str2 = num2seq(umi[bc2].idx, bc_len);
-	__VERBOSE("Merge %s and %s, with type1 %d, type2 %d\n", bc_str1, bc_str2, bc1, bc2);
+	__VERBOSE("Merge %s and %s, with type1 %d, type2 %d\n", bc_str1, bc_str2, umi[bc1].type, umi[bc2].type);
 }
 
 void correct_barcode()
