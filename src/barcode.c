@@ -76,9 +76,7 @@ void cut_off_barcode()
 	struct umi_hash_t *umi = bc_hash->umi;
 
 	qsort(umi, n_bc, sizeof(struct umi_hash_t), compare_umi);
-	find_dead_cell(umi, n_bc);
-	__VERBOSE("Largest library size (RNA) after sorting in cut_off_barcode: %d\n", umi[0].count);
-	print_top_ten();
+	__VERBOSE("Largest library size (RNA) after correcting barcode: %d\n", umi[0].count);
 	float cut_off = umi[0].count * CUT_OFF;
 	__VERBOSE("Cut off threshold: %.2f\n", cut_off);
 	for (i = 0; i < n_bc; ++i)
@@ -90,7 +88,7 @@ void cut_off_barcode()
 			n_bc = i - 1;
 			__VERBOSE("Dead cells at %d\n", n_bc);
 		}
-	__VERBOSE("Number of live cells: %d\n", n_bc);
+	__VERBOSE("Number of cells: %d\n", n_bc);
 }
 
 void merge_bc(int bc1, int bc2)
@@ -108,16 +106,6 @@ void merge_bc(int bc1, int bc2)
 			if (kh_exist(h, k))
 				add_umi(umi + bc2, kh_key(h, k), 1, __get_gene(kh_key(h, k)) < ngenes ? RNA_PRIOR : -1); //add umit count from bc2 to bc1
 		umi[bc1].type = -bc2; //mark cell bc1 as dead
-	}
-}
-
-void find_dead_cell(struct umi_hash_t *umi, int n)
-{
-	for (int i = 0; i < n; ++i) {
-		if (umi[i].type < 0)  {
-			__VERBOSE("Total number of live cells after sort by comparing cells: %d\n", i);
-			return;
-		}
 	}
 }
 
@@ -140,8 +128,7 @@ void correct_barcode()
 
 	n_bc = bc_hash->n_bc;
 	qsort(umi, n_bc, sizeof(struct umi_hash_t), compare_cell);
-	__VERBOSE("Largest library size (RNA) after sorting in the correct barcode: %d\n", umi[0].count);
-	print_top_ten();
+	__VERBOSE("Largest library size (RNA) before correcting barcode: %d\n", umi[0].count);
 	// Construct the indices to the sorted array
 	for (i = 0; i < n_bc; ++i) {
 		slot = mini_get(h, umi[i].idx);
@@ -186,10 +173,8 @@ void correct_barcode()
 				}
 			}
 		}
-		if (max_count) {
-			print_stat_merge(i, index[*merge_iter], umi);
+		if (max_count)
 			merge_bc(i, index[*merge_iter]);
-		}
 	}
 	free(index);
 }
@@ -496,10 +481,8 @@ void quantification(struct opt_count_t *opt, struct bc_hash_t *h,
 	ngenes = ref->n_rna;
 
 	__VERBOSE("Number of genes: %d\n", ngenes);
-	basic_bc_stat();
 	correct_barcode();
 	__VERBOSE("Done correcting barcode\n");
-	basic_bc_stat();
 	cut_off_barcode();
 	__VERBOSE("Done cutting off barcode\n");
 
