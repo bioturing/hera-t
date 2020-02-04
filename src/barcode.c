@@ -121,6 +121,13 @@ void find_dead_cell(struct umi_hash_t *umi, int n)
 	}
 }
 
+void print_stat_merge(int bc1, int bc2, struct umi_hash_t *umi)
+{
+	char *bc_str1 = num2seq(umi[bc1].idx, bc_len);
+	char *bc_str2 = num2seq(umi[bc2].idx, bc_len);
+	__VERBOSE("Merge %s and %s, with type1 %d, type2 %d\n", bc_str1, bc_str2, bc1, bc2);
+}
+
 void correct_barcode()
 {
 	uint64_t bc_idx, new_bc, tmp_idx;
@@ -178,8 +185,10 @@ void correct_barcode()
 				}
 			}
 		}
-		if (max_count)
+		if (max_count) {
+			print_stat_merge(i, index[*merge_iter], umi);
 			merge_bc(i, index[*merge_iter]);
+		}
 	}
 	free(index);
 }
