@@ -101,15 +101,14 @@ void merge_bc(int bc1, int bc2)
 	if (umi[bc1].type == umi[bc2].type && umi[bc2].count / 2 < umi[bc1].count)
 		return;
 
-	if (umi[bc1].type != umi[bc2].type)
-		return;
+	if ((umi[bc1].type & RNA_PRIOR) && (umi[bc2].type & RNA_PRIOR)) {
+		khash_t(bc_umi) *h = umi[bc1].h;
 
-	khash_t(bc_umi) *h = umi[bc1].h;
-
-	for (k = kh_begin(h); k != kh_end(h); ++k)
-		if (kh_exist(h, k))
-			add_umi(umi + bc2, kh_key(h, k), 1, __get_gene(kh_key(h, k)) < ngenes ? RNA_PRIOR : -1); //add umit count from bc2 to bc1
-	umi[bc1].type = -bc2; //mark cell bc1 as dead
+		for (k = kh_begin(h); k != kh_end(h); ++k)
+			if (kh_exist(h, k))
+				add_umi(umi + bc2, kh_key(h, k), 1, __get_gene(kh_key(h, k)) < ngenes ? RNA_PRIOR : -1); //add umit count from bc2 to bc1
+		umi[bc1].type = -bc2; //mark cell bc1 as dead
+	}
 }
 
 void find_dead_cell(struct umi_hash_t *umi, int n)
