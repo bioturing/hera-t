@@ -113,6 +113,7 @@ void find_dead_cell(struct umi_hash_t *umi, int n)
 	for (int i = 0; i < n; ++i) {
 		if (umi[i].type < 0)  {
 			__VERBOSE("Total number of live cells after sort by comparing cells: %d\n", i);
+			return;
 		}
 	}
 }
@@ -450,6 +451,20 @@ void print_molecule_info(char *out_path, struct ref_info_t *ref)
 	fclose(fp);
 }
 
+static int compare_bc_count(const void *a, const void *b)
+{
+	struct umi_hash_t *ca = (struct umi_hash_t *) a;
+	struct umi_hash_t *cb = (struct umi_hash_t *) b;
+	return cb->count - ca->count;
+}
+
+void basic_bc_stat()
+{
+	struct umi_hash_t *umi = bc_hash->umi;
+	qsort(bc_hash->umi, n_bc, sizeof(struct umi_hash_t), compare_bc_count);
+	__VERBOSE("Largest library size after sorting by count only: %d\n", umi[0].count);
+}
+
 void quantification(struct opt_count_t *opt, struct bc_hash_t *h,
 			struct ref_info_t *ref)
 {
@@ -459,7 +474,7 @@ void quantification(struct opt_count_t *opt, struct bc_hash_t *h,
 	ngenes = ref->n_rna;
 
 	__VERBOSE("Number of genes: %d\n", ngenes);
-
+	basic_bc_stat();
 	correct_barcode();
 	__VERBOSE("Done correcting barcode\n");
 	cut_off_barcode();
