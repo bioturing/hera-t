@@ -172,7 +172,7 @@ void correct_barcode()
 
 				// ensure barcode of rna is prior
 				count = umi[iter].count;
-				if (count > max_count) {
+				if (count > max_count && umi[iter].type & RNA_PRIOR) {
 					max_count = count;
 					merge_iter = mini_get(h, umi[iter].idx);
 				}
