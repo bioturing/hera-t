@@ -76,7 +76,8 @@ void cut_off_barcode()
 	struct umi_hash_t *umi = bc_hash->umi;
 
 	qsort(umi, n_bc, sizeof(struct umi_hash_t), compare_umi);
-	__VERBOSE("Largest library size (RNA): %d\n", umi[0].count);
+	find_dead_cell(umi, n_bc);
+	__VERBOSE("Largest library size (RNA) after sorting in cut_off_barcode: %d\n", umi[0].count);
 	float cut_off = umi[0].count * CUT_OFF;
 	__VERBOSE("Cut off threshold: %.2f\n", cut_off);
 	for (i = 0; i < n_bc; ++i)
@@ -127,7 +128,8 @@ void correct_barcode()
 
 	n_bc = bc_hash->n_bc;
 	qsort(umi, n_bc, sizeof(struct umi_hash_t), compare_cell);
-	find_dead_cell(umi, n_bc);
+	__VERBOSE("Largest library size (RNA) after sorting in the correct barcode: %d\n", umi[0].count);
+	// Construct the indices to the sorted array
 	for (i = 0; i < n_bc; ++i) {
 		slot = mini_get(h, umi[i].idx);
 		index[*slot] = i;
