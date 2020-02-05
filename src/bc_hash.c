@@ -13,7 +13,7 @@ struct bc_hash_t *init_bc_hash()
 	struct bc_hash_t *bc_hash = malloc(sizeof(struct bc_hash_t));
 	init_mini_hash(&bc_hash->h, 10);
 	bc_hash->n_bc = 0;
-	bc_hash->umi = malloc(INIT_SIZE_UMI);
+	bc_hash->umi = malloc(INIT_SIZE_UMI * sizeof(struct mini_hash_t));
 	bc_hash->size = INIT_SIZE_UMI;
 	bc_hash->max_cnt = INIT_SIZE_UMI * LOAD_FACTOR;
 
