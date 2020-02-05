@@ -87,10 +87,6 @@ void cut_off_barcode()
 			n_bc = i - 1;
 			__VERBOSE("Library size smaller than cutoff: %.2f vs %.2f\n", (float) umi[i].count, cut_off);
 		}
-		if (umi[i].type < RNA_PRIOR) {
-			n_bc = i - 1;
-			__VERBOSE("Dead cells at %d\n", n_bc);
-		}
 	__VERBOSE("Number of cells: %d\n", n_bc);
 }
 
@@ -98,18 +94,18 @@ void cut_off_barcode()
  */
 void merge_bc(int bc1, int bc2)
 {
-	khiter_t k;
+	int i;
 	struct umi_hash_t *umi = bc_hash->umi;
 
 	if (umi[bc1].type == umi[bc2].type && umi[bc2].count / 2 < umi[bc1].count)
 		return;
 
 	if ((umi[bc1].type & RNA_PRIOR) && (umi[bc2].type & RNA_PRIOR)) {
-		khash_t(bc_umi) *h = umi[bc1].h;
+		struct mini_hash_t *h = umi[bc1].h;
 
-		for (k = kh_begin(h); k != kh_end(h); ++k)
-			if (kh_exist(h, k))
-				add_umi(umi + bc2, kh_key(h, k), 1, __get_gene(kh_key(h, k)) < ngenes ? RNA_PRIOR : -1); //add umit count from bc2 to bc1
+		for (i = 0; i < h->size; ++i)
+			if (h->key[i] != EMPTY_SLOT)
+				add_umi(umi + bc2, h->key[i], 1, __get_gene(h->key[i]) < ngenes ? RNA_PRIOR : -1); //add umit count from bc2 to bc1
 		umi[bc1].type = -bc2; //mark cell bc1 as dead
 	}
 }
@@ -274,15 +270,19 @@ void write_mtx(char *path, int len)
 	fclose(fbin);
 	xwfclose(fmtx);
 }
-
-void merge_count(khash_t(bc_umi) *h, khiter_t src, khiter_t dst)
+/*
+ * Merge counts of two umi_ref
+ * @param src: index of the first umi in the hash table
+ * @param dst: index of the first umi in the hash table
+ */
+void merge_count(struct mini_hash_t *h, uint64_t src, uint64_t dst)
 {
-	if (kh_value(h, src) > kh_value(h, dst)) {
-		kh_value(h, src) += kh_value(h, dst);
-		kh_value(h, dst) = -1;
+	if (h->h[src] > h->h[dst]) {
+		h->h[src] += h->h[dst];
+		h->h[dst] = -1;
 	} else {
-		kh_value(h, dst) += kh_value(h, src);
-		kh_value(h, src) = -1;
+		h->h[dst] += h->h[src];
+		h->h[src] = -1;
 	}
 }
 
@@ -290,14 +290,15 @@ void correct_umi(struct umi_hash_t *umi)
 {
 	uint64_t umi_idx, new_umi, key;
 	int i, gene, ch, c, flag;
-	khash_t(bc_umi) *h = umi->h;
-	khiter_t k, iter;
+	struct mini_hash_t *h = umi->h;
+	khiter_t k;
+	uint64_t *iter;
 
-	for (k = kh_begin(h); k != kh_end(h); ++k) {
-		if (!kh_exist(h, k) || kh_value(h, k) < 0)
+	for (k = 0; k < h->size; ++k) {
+		if (h->key[k] == EMPTY_SLOT || h->h[k] < 0)
 			continue;
 
-		key = kh_key(h, k);
+		key = h->key[k];
 		umi_idx = __get_umi(key);
 		gene = __get_gene(key);
 		flag = 0;
@@ -309,9 +310,9 @@ void correct_umi(struct umi_hash_t *umi)
 					continue;
 				new_umi = umi_idx + (c - ch) * pow5_r[i];
 				new_umi = (new_umi << GENE_BIT_LEN | gene);
-				iter = kh_get(bc_umi, h, new_umi);
-				if (iter != kh_end(h) && kh_value(h, iter) > 0) {
-					merge_count(h, k, iter);
+				iter = mini_get(h, new_umi);
+				if (iter != (uint64_t *)EMPTY_SLOT && (*iter) > 0) {
+					merge_count(h, k, iter - h->h);
 					flag = 1;
 					break;
 				}
@@ -327,12 +328,12 @@ void count_genes(struct umi_hash_t *umi, int bc_pos, int *cnt, int n_refs,
 {
 	khiter_t k;
 	int i;
-	khash_t(bc_umi) *h = umi->h;
+	struct mini_hash_t *h = umi->h;
 
 	memset(cnt, 0, n_refs * sizeof(int));
-	for (k = kh_begin(h); k != kh_end(h); ++k)
-		if (kh_exist(h, k) && kh_value(h, k) > 0)
-			++cnt[__get_gene(kh_key(h, k))]; //only count 1 unique UMI once
+	for (k = 0; k < h->size; ++k)
+		if (h->key[k] != EMPTY_SLOT && h->h[k] != 0)
+			++cnt[__get_gene(h->key[k])]; //only count 1 unique UMI once
 
 	pthread_mutex_lock(lock);
 	for (i = 1; i <= n_refs; ++i) {
@@ -428,7 +429,7 @@ void print_molecule_info(char *out_path, struct ref_info_t *ref)
 	int i, r;
 	int64_t value, umi_idx;
 	khiter_t k;
-	khash_t(bc_umi) *h;
+	struct mini_hash_t *h;
 	struct umi_hash_t *umi = bc_hash->umi;
 
 	fp = xfopen(out_path, "w");
@@ -437,16 +438,16 @@ void print_molecule_info(char *out_path, struct ref_info_t *ref)
 		bc_str = num2seq(umi[i].idx, bc_len);
 		h = umi[i].h;
 
-		for (k = kh_begin(h); k != kh_end(h); ++k) {
-			if (!kh_exist(h, k) || kh_value(h, k) < 0)
+		for (k = 0; k < h->size; ++k) {
+			if (h->key[k] == EMPTY_SLOT || h->h[k] < 0)
 				continue;
-			value = kh_key(h, k);
+			value = h->key[k];
 			umi_idx = __get_umi(value);
 			umi_str = num2seq(umi_idx, umi_len);
 			r = __get_gene(value);
-			fprintf(fp, "%s\t%s\t%s\t%u\n", bc_str, umi_str,
+			fprintf(fp, "%s\t%s\t%s\t%llu\n", bc_str, umi_str,
 				ref->ref_text + ref->text_iter[r],
-				kh_value(h, k));
+				h->h[k]);
 			free(umi_str);
 		}
 		free(bc_str);
@@ -462,19 +463,18 @@ static int compare_bc_count(const void *a, const void *b)
 	return cb->count - ca->count;
 }
 
+void print_top_ten()
+{
+	for (int i = 0; i < 10; ++i) {
+		__VERBOSE("Library size of the %d cell: %d, barcode %s\n", i, bc_hash->umi[i].count, num2seq(bc_hash->umi[i].idx, bc_len));
+	}
+}
 void basic_bc_stat()
 {
 	struct umi_hash_t *umi = bc_hash->umi;
 	qsort(bc_hash->umi, bc_hash->n_bc, sizeof(struct umi_hash_t), compare_bc_count);
 	__VERBOSE("Largest library size after sorting by count only: %d\n", umi[0].count);
 	print_top_ten();
-}
-
-void print_top_ten()
-{
-	for (int i = 0; i < 10; ++i) {
-		__VERBOSE("Library size of the %d cell: %d, barcode %s\n", i, bc_hash->umi[i].count, num2seq(bc_hash->umi[i].idx, bc_len));
-	}
 }
 
 void quantification(struct opt_count_t *opt, struct bc_hash_t *h,

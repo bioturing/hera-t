@@ -2,11 +2,12 @@
 #define _BC_HASH_H
 
 #include "khash.h"
+#include "mini_hash.h"
 
 KHASH_MAP_INIT_INT64(bc_umi, int);
 
 struct umi_hash_t {
-	khash_t(bc_umi) *h;
+	struct mini_hash_t *h;
 	int type;
 	int count;
 	int64_t idx;
