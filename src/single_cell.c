@@ -112,9 +112,7 @@ void align_read(struct read_t *read1, struct read_t *read2,
 	int64_t umi_ref = seq2num(read1->seq + lib->umi_pos, lib->umi_len);
 
 	umi_ref = umi_ref << GENE_BIT_LEN | ref;
-	pthread_mutex_lock(data->lock_hash);
 	add_bc_umi(data->bc_table, bc_idx, umi_ref, data->type);
-	pthread_mutex_unlock(data->lock_hash);
 }
 
 void *align_worker(void *thread_data)
