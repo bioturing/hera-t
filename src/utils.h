@@ -33,7 +33,7 @@
 #define THREAD_STACK_SIZE	16777216
 
 #define RNA_PRIOR	4
-#define TAG_PRIOR	0
+#define TAG_PRIOR	2
 
 /*
  * Built in macros

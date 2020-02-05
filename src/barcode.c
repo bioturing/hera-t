@@ -55,7 +55,9 @@ static int compare_cell(const void *a, const void *b)
 {
 	struct umi_hash_t *c_a = (struct umi_hash_t *) a;
 	struct umi_hash_t *c_b = (struct umi_hash_t *) b;
-	return c_b->type == c_a->type? c_b->count - c_a->count: c_b->type - c_a->type;
+	// Only sort by count, mapping for adt doesnt't increase count, so this
+	// is the same as RNA-seq counting
+	return c_b->count - c_a->count;
 }
 
 static int compare_umi(const void *a, const void *b)
@@ -77,6 +79,7 @@ void cut_off_barcode()
 
 	qsort(umi, n_bc, sizeof(struct umi_hash_t), compare_umi);
 	__VERBOSE("Largest library size (RNA) after correcting barcode: %d\n", umi[0].count);
+	// Set the hard cut off as 0.01 * the largest library size
 	float cut_off = umi[0].count * CUT_OFF;
 	__VERBOSE("Cut off threshold: %.2f\n", cut_off);
 	for (i = 0; i < n_bc; ++i)
@@ -91,6 +94,8 @@ void cut_off_barcode()
 	__VERBOSE("Number of cells: %d\n", n_bc);
 }
 
+/* Merge UMI hash from bc1 to bc2
+ */
 void merge_bc(int bc1, int bc2)
 {
 	khiter_t k;
@@ -141,7 +146,7 @@ void correct_barcode()
 
 		bc_idx = umi[i].idx;
 		max_count = 0;
-		for (k = 0; k < bc_len; ++k) {
+		for (k = 0; k < bc_len; ++k) { //Replace each pos with an alternative base pair
 			flag = 0;
 			ch = (bc_idx / pow5_r[k]) % 5;
 			tmp_idx = bc_idx - ch * pow5_r[k];
