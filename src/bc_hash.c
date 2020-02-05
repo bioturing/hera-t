@@ -3,12 +3,19 @@
 #include "mini_hash.h"
 #include "atomic.h"
 
+#define INIT_SIZE_UMI 1024
+#define LOAD_FACTOR 0.9
+
+pthread_mutex_t bc_hash_mutex;
+
 struct bc_hash_t *init_bc_hash()
 {
 	struct bc_hash_t *bc_hash = malloc(sizeof(struct bc_hash_t));
 	init_mini_hash(&bc_hash->h, 10);
 	bc_hash->n_bc = 0;
-	bc_hash->umi = malloc(1);
+	bc_hash->umi = malloc(INIT_SIZE_UMI);
+	bc_hash->size = INIT_SIZE_UMI;
+	bc_hash->max_cnt = INIT_SIZE_UMI * LOAD_FACTOR;
 
 	return bc_hash;
 }
@@ -25,15 +32,19 @@ int32_t get_bc(struct bc_hash_t *bc_hash, int64_t bc)
 		return *k;
 
 	k = mini_put(&bc_hash->h, bc);
-	n = bc_hash->n_bc;
-	*k = n;
-	bc_hash->umi = realloc (bc_hash->umi, (n + 1) * sizeof(struct umi_hash_t));
+
+	if (__sync_bool_compare_and_swap32(&bc_hash->n_bc, bc_hash->max_cnt, bc_hash->max_cnt)) {
+		pthread_mutex_lock(&bc_hash_mutex);
+		bc_hash->umi = realloc (bc_hash->umi, (bc_hash->size << 1) * sizeof(struct umi_hash_t));
+		bc_hash->max_cnt = bc_hash->size * LOAD_FACTOR;
+		pthread_mutex_unlock(&bc_hash_mutex);
+	}
+	n = __sync_fetch_and_add32(&bc_hash->n_bc, 1);
 	init_mini_hash(&bc_hash->umi[n].h, 7);
 	bc_hash->umi[n].type = 0;
 	bc_hash->umi[n].count = 0;
 	bc_hash->umi[n].idx = bc;
-	++bc_hash->n_bc;
-
+	*k = n;
 	return n;
 }
 

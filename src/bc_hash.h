@@ -17,6 +17,8 @@ struct bc_hash_t {
 	struct mini_hash_t *h;
 	int n_bc;
 	struct umi_hash_t *umi;
+	int size;
+	int max_cnt;
 };
 
 struct bc_hash_t *init_bc_hash();
