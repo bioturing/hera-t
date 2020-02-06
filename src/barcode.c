@@ -486,7 +486,7 @@ void quantification(struct opt_count_t *opt, struct bc_hash_t *h,
 	ngenes = ref->n_rna;
 
 	__VERBOSE("Number of genes: %d\n", ngenes);
-	correct_barcode();
+	//correct_barcode();
 	__VERBOSE("Done correcting barcode\n");
 	cut_off_barcode();
 	__VERBOSE("Done cutting off barcode\n");
