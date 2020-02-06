@@ -77,6 +77,7 @@ void cut_off_barcode()
 	int i;
 	struct umi_hash_t *umi = bc_hash->umi;
 
+	n_bc = bc_hash->n_bc;
 	qsort(umi, n_bc, sizeof(struct umi_hash_t), compare_umi);
 	__VERBOSE("Largest library size (RNA) after correcting barcode: %d\n", umi[0].count);
 	// Set the hard cut off as 0.01 * the largest library size
@@ -486,7 +487,7 @@ void quantification(struct opt_count_t *opt, struct bc_hash_t *h,
 	ngenes = ref->n_rna;
 
 	__VERBOSE("Number of genes: %d\n", ngenes);
-	//correct_barcode();
+	correct_barcode();
 	__VERBOSE("Done correcting barcode\n");
 	cut_off_barcode();
 	__VERBOSE("Done cutting off barcode\n");
