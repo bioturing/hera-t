@@ -1,9 +1,10 @@
 #!/bin/bash
 
 set -e
-
 mkdir -p local
 mkdir -p build
+cd zlib && ./configure --prefix=../local && cd ../
+
 cd build
 
 mkdir -p zlib
