@@ -98,6 +98,7 @@ void load_rna_index(const char *prefix, int32_t count_intron)
 void add_rna_ref(struct ref_info_t *ref)
 {
 	ref->n_refs = genes.n;
+	ref->n_rna = genes.n;
 	ref->type[0] = ref->n_refs;
 
 	ref->text_len = genes.n * genes.l_name;

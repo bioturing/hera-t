@@ -1,10 +1,11 @@
 #include "bc_hash.h"
 #include "utils.h"
+#include "mini_hash.h"
 
 struct bc_hash_t *init_bc_hash()
 {
 	struct bc_hash_t *bc_hash = malloc(sizeof(struct bc_hash_t));
-	bc_hash->h = kh_init(bc_umi);
+	init_mini_hash(&bc_hash->h, 10);
 	bc_hash->n_bc = 0;
 	bc_hash->umi = malloc(1);
 
@@ -13,18 +14,18 @@ struct bc_hash_t *init_bc_hash()
 
 int32_t get_bc(struct bc_hash_t *bc_hash, int64_t bc)
 {
-	khiter_t k;
-	int32_t ret, n;
+	int32_t n;
+	uint64_t *k;
 	
-	khash_t(bc_umi) *h = bc_hash->h;
-	k = kh_get(bc_umi, h, bc);
+	struct mini_hash_t *h = bc_hash->h;
+	k = mini_get(h, bc);
 
-	if (k != kh_end(h))
-		return kh_value(h, k);
+	if (k != (uint64_t *)EMPTY_SLOT)
+		return *k;
 
-	k = kh_put(bc_umi, h, bc, &ret);
+	k = mini_put(&bc_hash->h, bc);
 	n = bc_hash->n_bc;
-	kh_value(h, k) = n;
+	*k = n;
 	bc_hash->umi = realloc (bc_hash->umi, (n + 1) * sizeof(struct umi_hash_t));
 	bc_hash->umi[n].h = kh_init(bc_umi);
 	bc_hash->umi[n].type = 0;
@@ -49,7 +50,7 @@ void add_umi(struct umi_hash_t *umi, int64_t umi_ref, int32_t incr, int type)
 		if (type == RNA_PRIOR)
 			++umi->count;
 	}
-	
+
 	kh_value(h, k) += incr;
 }
 
@@ -66,6 +67,6 @@ void destroy_bc_hash(struct bc_hash_t *bc_hash)
 	int i;
 	for (i = 0; i < bc_hash->n_bc; ++i)
 		kh_destroy(bc_umi, bc_hash->umi[i].h);
-	kh_destroy(bc_umi, bc_hash->h);
+	destroy_mini_hash(bc_hash->h);
 	free(bc_hash);
 }

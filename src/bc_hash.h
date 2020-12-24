@@ -13,7 +13,7 @@ struct umi_hash_t {
 };
 
 struct bc_hash_t {
-	khash_t(bc_umi) *h;
+	struct mini_hash_t *h;
 	int n_bc;
 	struct umi_hash_t *umi;
 };

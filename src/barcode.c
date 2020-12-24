@@ -4,6 +4,7 @@
 #include "io_utils.h"
 #include "verbose.h"
 #include "utils.h"
+#include "mini_hash.h"
 
 #define __get_gene(x) ((int)((x) & GENE_MASK))
 #define __get_umi(x) ((x) >> GENE_BIT_LEN)
@@ -24,11 +25,13 @@ struct umi_bundle_t {
 int32_t n_bc;
 int16_t bc_len, umi_len;
 struct bc_hash_t *bc_hash;
+int ngenes;
 
 struct ref_info_t *init_ref_info()
 {
 	struct ref_info_t *ref = malloc(sizeof(struct ref_info_t));
 	ref->n_refs = 0;
+	ref->n_rna = 0;
 	ref->text_iter = malloc(1);
 	ref->ref_text = malloc(1);
 	ref->ref_id = malloc(1);
@@ -52,7 +55,9 @@ static int compare_cell(const void *a, const void *b)
 {
 	struct umi_hash_t *c_a = (struct umi_hash_t *) a;
 	struct umi_hash_t *c_b = (struct umi_hash_t *) b;
-	return c_b->type == c_a->type? c_b->count - c_a->count: c_b->type - c_a->type;
+	// Only sort by count, mapping for adt doesnt't increase count, so this
+	// is the same as RNA-seq counting
+	return c_b->count - c_a->count;
 }
 
 static int compare_umi(const void *a, const void *b)
@@ -72,13 +77,26 @@ void cut_off_barcode()
 	int i;
 	struct umi_hash_t *umi = bc_hash->umi;
 
+	n_bc = bc_hash->n_bc;
 	qsort(umi, n_bc, sizeof(struct umi_hash_t), compare_umi);
+	__VERBOSE("Largest library size (RNA) after correcting barcode: %d\n", umi[0].count);
+	// Set the hard cut off as 0.01 * the largest library size
 	float cut_off = umi[0].count * CUT_OFF;
+	__VERBOSE("Cut off threshold: %.2f\n", cut_off);
 	for (i = 0; i < n_bc; ++i)
-		if ((float) umi[i].count < cut_off || umi[i].type < RNA_PRIOR)
+		if ((float) umi[i].count < cut_off) {
 			n_bc = i - 1;
+			__VERBOSE("Library size smaller than cutoff: %.2f vs %.2f\n", (float) umi[i].count, cut_off);
+		}
+		if (umi[i].type < RNA_PRIOR) {
+			n_bc = i - 1;
+			__VERBOSE("Dead cells at %d\n", n_bc);
+		}
+	__VERBOSE("Number of cells: %d\n", n_bc);
 }
 
+/* Merge UMI hash from bc1 to bc2
+ */
 void merge_bc(int bc1, int bc2)
 {
 	khiter_t k;
@@ -87,49 +105,62 @@ void merge_bc(int bc1, int bc2)
 	if (umi[bc1].type == umi[bc2].type && umi[bc2].count / 2 < umi[bc1].count)
 		return;
 
-	khash_t(bc_umi) *h = umi[bc1].h;
+	if ((umi[bc1].type & RNA_PRIOR) && (umi[bc2].type & RNA_PRIOR)) {
+		khash_t(bc_umi) *h = umi[bc1].h;
 
-	for (k = kh_begin(h); k != kh_end(h); ++k)
-		if (kh_exist(h, k))
-			add_umi(umi + bc2, kh_key(h, k), kh_value(h, k), RNA_PRIOR);
-	umi[bc1].type = -bc2;
+		for (k = kh_begin(h); k != kh_end(h); ++k)
+			if (kh_exist(h, k))
+				add_umi(umi + bc2, kh_key(h, k), 1, __get_gene(kh_key(h, k)) < ngenes ? RNA_PRIOR : -1); //add umit count from bc2 to bc1
+		umi[bc1].type = -bc2; //mark cell bc1 as dead
+	}
+}
+
+void print_stat_merge(int bc1, int bc2, struct umi_hash_t *umi)
+{
+	char *bc_str1 = num2seq(umi[bc1].idx, bc_len);
+	char *bc_str2 = num2seq(umi[bc2].idx, bc_len);
+	__VERBOSE("Merge %s and %s, with type1 %d, type2 %d, count1 %d, count2 %d\n",
+		bc_str1, bc_str2, umi[bc1].type, umi[bc2].type, umi[bc1].count, umi[bc2].count);
 }
 
 void correct_barcode()
 {
 	uint64_t bc_idx, new_bc, tmp_idx;
-	int i, k, ch, c, max_count, merge_iter, flag, count;
-	khiter_t iter;
+	int i, k, ch, c, max_count, flag, count, iter;
 	struct umi_hash_t *umi = bc_hash->umi;
-	khash_t(bc_umi) *h = bc_hash->h;
+	struct mini_hash_t *h = bc_hash->h;
 	int *index = malloc(bc_hash->n_bc * sizeof(int));
+	uint64_t *slot, *merge_iter = NULL;
 
 	n_bc = bc_hash->n_bc;
 	qsort(umi, n_bc, sizeof(struct umi_hash_t), compare_cell);
+	__VERBOSE("Largest library size (RNA) before correcting barcode: %d\n", umi[0].count);
+	// Construct the indices to the sorted array
 	for (i = 0; i < n_bc; ++i) {
-		k = kh_get(bc_umi, h, umi[i].idx);
-		index[kh_value(h, k)] = i;
+		slot = mini_get(h, umi[i].idx);
+		index[*slot] = i;
 	}
 
 	for (i = bc_hash->n_bc; i > 0 ; --i) {
-		if (umi[i].type < 0)
+		if (umi[i].type < 0 || !(umi[i].type & RNA_PRIOR))
 			continue;
 
 		bc_idx = umi[i].idx;
 		max_count = 0;
-		for (k = 0; k < bc_len; ++k) {
+		for (k = 0; k < bc_len; ++k) { //Replace each pos with an alternative base pair
 			flag = 0;
 			ch = (bc_idx / pow5_r[k]) % 5;
 			tmp_idx = bc_idx - ch * pow5_r[k];
-			for (c = 0; c < NNU; ++c) {
+			for (c = 0; c < NNU; ++c) { //merge other 1-hamming distance barcodes
 				if (ch == c)
 					continue;
 				new_bc = tmp_idx + pow5_r[k] * c;
-				iter = kh_get(bc_umi, h, new_bc);
-				if (iter == kh_end(h))
+				slot = mini_get(h, new_bc);
+
+				if (slot == (uint64_t *)EMPTY_SLOT)
 					continue;
 
-				iter = index[kh_value(h, iter)];
+				iter = index[*slot];
 				while (umi[iter].type < 0) {
 					if (i == -umi[iter].type){
 						flag = 1;
@@ -141,16 +172,15 @@ void correct_barcode()
 					continue;
 
 				// ensure barcode of rna is prior
-				count = umi[iter].count +
-					(umi[iter].type & RNA_PRIOR) * umi[0].count;
-				if (count > max_count) {
+				count = umi[iter].count;
+				if (count > max_count && umi[iter].type & RNA_PRIOR) {
 					max_count = count;
-					merge_iter = kh_get(bc_umi, h, umi[iter].idx);
+					merge_iter = mini_get(h, umi[iter].idx);
 				}
 			}
 		}
 		if (max_count)
-			merge_bc(i, index[kh_value(h, merge_iter)]);
+			merge_bc(i, index[*merge_iter]);
 	}
 	free(index);
 }
@@ -303,7 +333,7 @@ void count_genes(struct umi_hash_t *umi, int bc_pos, int *cnt, int n_refs,
 	memset(cnt, 0, n_refs * sizeof(int));
 	for (k = kh_begin(h); k != kh_end(h); ++k)
 		if (kh_exist(h, k) && kh_value(h, k) > 0)
-			++cnt[__get_gene(kh_key(h, k))];
+			++cnt[__get_gene(kh_key(h, k))]; //only count 1 unique UMI once
 
 	pthread_mutex_lock(lock);
 	for (i = 1; i <= n_refs; ++i) {
@@ -426,13 +456,37 @@ void print_molecule_info(char *out_path, struct ref_info_t *ref)
 	fclose(fp);
 }
 
+static int compare_bc_count(const void *a, const void *b)
+{
+	struct umi_hash_t *ca = (struct umi_hash_t *) a;
+	struct umi_hash_t *cb = (struct umi_hash_t *) b;
+	return cb->count - ca->count;
+}
+
+void basic_bc_stat()
+{
+	struct umi_hash_t *umi = bc_hash->umi;
+	qsort(bc_hash->umi, bc_hash->n_bc, sizeof(struct umi_hash_t), compare_bc_count);
+	__VERBOSE("Largest library size after sorting by count only: %d\n", umi[0].count);
+	print_top_ten();
+}
+
+void print_top_ten()
+{
+	for (int i = 0; i < 10; ++i) {
+		__VERBOSE("Library size of the %d cell: %d, barcode %s\n", i, bc_hash->umi[i].count, num2seq(bc_hash->umi[i].idx, bc_len));
+	}
+}
+
 void quantification(struct opt_count_t *opt, struct bc_hash_t *h,
 			struct ref_info_t *ref)
 {
 	bc_len = opt->lib.bc_len;
 	umi_len = opt->lib.umi_len;
 	bc_hash = h;
+	ngenes = ref->n_rna;
 
+	__VERBOSE("Number of genes: %d\n", ngenes);
 	correct_barcode();
 	__VERBOSE("Done correcting barcode\n");
 	cut_off_barcode();
