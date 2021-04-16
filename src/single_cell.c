@@ -363,7 +363,10 @@ void update_result(struct align_stat_t *res, struct align_stat_t *add)
 	res->unmap	+= add->unmap;
 	res->intron     += add->intron;
 	res->intergenic += add->intergenic;
-	__VERBOSE("\rNumber of processed reads: %ld", res->nread);
+	if ((res->nread / 1000000) > res->s)  {
+		res->s += 1;
+		__VERBOSE("Number of processed reads: %d million reads\n", res->s);
+	}
 }
 
 void init_bwt(const char *path, int32_t count_intron)
