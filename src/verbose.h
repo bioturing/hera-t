@@ -9,7 +9,7 @@ void log_write(const char *fmt, ...);
 #define __VERBOSE_INFO(tag, fmt, ...) do {				       \
 	fprintf(stderr, "[" tag "] " fmt, __VA_ARGS__);			       \
 	fflush(stderr);							       \
-	log_write(fmt, __VA_ARGS__);
+	log_write(fmt, __VA_ARGS__); \
 } while (0) /* VERBOSE_INFO */
 
 #define __VERBOSE_LOG(tag, fmt, ...) do {				       \
@@ -20,7 +20,7 @@ void log_write(const char *fmt, ...);
 #define __VERBOSE(fmt, ...) do {					       \
 	fprintf(stderr, fmt, __VA_ARGS__);				       \
 	fflush(stderr);							       \
-	log_write(fmt, __VA_ARGS__);
+	log_write(fmt, __VA_ARGS__); \
 } while (0) /* VERBOSE */
 
 #if defined(NDEBUG)
