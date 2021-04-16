@@ -13,7 +13,7 @@ static FILE *log_file = NULL;
 void init_log(const char *path)
 {
 	if (!log_file) {
-		log_file = fopen(path, "wb");
+		log_file = fopen(path, "a");
 		if (!log_file)
 			__VERBOSE_INFO("WARNING", "Unable to open log file."
 					" No log will be written\n");

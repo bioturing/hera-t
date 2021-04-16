@@ -285,6 +285,7 @@ void bwt_load(const char *path, struct bwt_t *bwt)
 	xfread(bwt->CC + 1, sizeof(bioint_t), 4, fp);
 	xfread(&bwt->bwt_size, sizeof(bioint_t), 1, fp);
 	//__VERBOSE("[DEBUG] bwt_size = %u\n", bwt->bwt_size);
+	__VERBOSE("Gonna allocate %llu MB for bwt...\n", bwt->bwt_size * 4 / 1000000);
 	bwt->bwt = malloc(bwt->bwt_size * 4);
 	//if (bwt->bwt == NULL)
 		//__VERBOSE("FAILLLLLLLLLLLL");
@@ -292,6 +293,8 @@ void bwt_load(const char *path, struct bwt_t *bwt)
 	// SA
 	//__VERBOSE("[DEBUG] Reading suffix array\n");
 	xfread(&bwt->n_sa, sizeof(bioint_t), 1, fp);
+	__VERBOSE("Gonna allocate %ld MB for SA...\n", 
+		  bwt->n_sa * sizeof(bioint_t)  / 1000000);
 	bwt->sa = malloc(bwt->n_sa * sizeof(bioint_t));
 	xfread(bwt->sa, sizeof(bioint_t), bwt->n_sa, fp);
 	// TODO: check for integrity

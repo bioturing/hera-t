@@ -193,16 +193,23 @@ void load_cons_hash(const char *file_path, int *kcons)
 	size = 1 << hcons->l2_size;
 	hcons->mask = size - 1;
 
-	hcons->bpos = malloc((size + 1) * sizeof(int));
+	if ((hcons->bpos = malloc((size + 1) * sizeof(int))) == NULL)
+		__ERROR("Cannot allocate more memory!\n");
 	xfread(hcons->bpos, sizeof(int), size + 1, fi);
 
-	hcons->id = malloc(hcons->bpos[size] * sizeof(uint32_t));
+	if ((hcons->id = malloc(hcons->bpos[size] * sizeof(uint32_t))) == NULL)
+		__ERROR("Cannot allocate more memory!\n");
+
 	xfread(hcons->id, sizeof(uint32_t), hcons->bpos[size], fi);
 
-	hcons->head = malloc((hcons->bpos[size] + 1) * sizeof(int));
+	if ((hcons->head = malloc((hcons->bpos[size] + 1) * sizeof(int))) == NULL)
+		__ERROR("Cannot allocate more memory!\n");
+
 	xfread(hcons->head, sizeof(int), hcons->bpos[size] + 1, fi);
 
-	hcons->pos = malloc(hcons->head[hcons->bpos[size]] * sizeof(int));
+	if ((hcons->pos = malloc(hcons->head[hcons->bpos[size]] * sizeof(int))) == NULL)
+		__ERROR("Cannot allocate more memory!\n");
+
 	xfread(hcons->pos, sizeof(int), hcons->head[hcons->bpos[size]], fi);
 
 	xwfclose(fi);

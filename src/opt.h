@@ -23,7 +23,7 @@ struct opt_count_t {
 	char *temp_dir;
 	int is_dump_align;
 	int count_intron;
-
+	char *log_file;
 	// Library type
 	struct library_t lib;
 };

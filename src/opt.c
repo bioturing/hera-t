@@ -86,6 +86,7 @@ static struct opt_count_t *init_opt_count()
 	opt->is_dump_align = 0;
 	opt->count_intron = 0;
 	opt->left_file = opt->right_file = NULL;
+	opt->log_file = "herat.log";
 	return opt;
 }
 
@@ -267,6 +268,10 @@ struct opt_count_t *get_opt_count(int argc, char *argv[])
 			if (!check_valid_library(type))
 				__OPT_ERROR("Invalid library type");
 			opt->lib = get_library(type);
+			pos += 2;
+		} else if (!strcmp(argv[pos], "--log")) {
+			opt_check_str(argc - pos, argv + pos);
+			opt->log_file = argv[pos + 1];
 			pos += 2;
 		} else if (!strcmp(argv[pos], "--dump-align")) {
 			opt->is_dump_align = 1;
