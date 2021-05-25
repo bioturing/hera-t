@@ -3,10 +3,13 @@
 
 #include <stdio.h>
 
+void log_write(const char *fmt, ...);
+
 #if defined(_MSC_VER)
 #define __VERBOSE_INFO(tag, fmt, ...) do {				       \
 	fprintf(stderr, "[" tag "] " fmt, __VA_ARGS__);			       \
 	fflush(stderr);							       \
+	log_write(fmt, __VA_ARGS__); \
 } while (0) /* VERBOSE_INFO */
 
 #define __VERBOSE_LOG(tag, fmt, ...) do {				       \
@@ -17,6 +20,7 @@
 #define __VERBOSE(fmt, ...) do {					       \
 	fprintf(stderr, fmt, __VA_ARGS__);				       \
 	fflush(stderr);							       \
+	log_write(fmt, __VA_ARGS__); \
 } while (0) /* VERBOSE */
 
 #if defined(NDEBUG)
@@ -50,6 +54,7 @@
 #define __VERBOSE(fmt, args...) do {					       \
 	fprintf(stderr, fmt, ##args);					       \
 	fflush(stderr);							       \
+	log_write(fmt, ##args);  \
 } while (0) /* VERBOSE */
 
 #if defined(NDEBUG)
@@ -67,7 +72,6 @@
 
 void init_log(const char *path);
 
-void log_write(const char *fmt, ...);
 
 void close_log();
 

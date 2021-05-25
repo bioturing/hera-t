@@ -4,6 +4,7 @@
 #include <stdio.h>
 #define HAVE_STRUCT_TIMESPEC
 #include <pthread.h>
+#include <time.h>
 
 #include "interval_tree.h"
 #include "alignment.h"
@@ -59,12 +60,15 @@ void single_cell(int pos, int argc, char *argv[])
 {
 	struct opt_count_t *opt = get_opt_count(argc - pos, argv + pos);
 	char prefix[1024];
-	char tmp_dir[1024];
 	strcpy(prefix, opt->out_dir); strcat(prefix, "/");
 	strcat(prefix, opt->prefix);
 
-	strcpy(tmp_dir, prefix); strcat(tmp_dir, ".log");
-	init_log(tmp_dir);
+	time_t mytime = time(NULL);
+	char * time_str = ctime(&mytime);
+	time_str[strlen(time_str)-1] = '\0';
+
+	init_log(opt->log_file);
+	__VERBOSE("Current Time : %s\n", time_str);
 
 	log_write("VERSION: %d.%d\n", PROG_VERSION_MAJOR, PROG_VERSION_MINOR);
 	log_write("COMMAND: ");
@@ -363,7 +367,10 @@ void update_result(struct align_stat_t *res, struct align_stat_t *add)
 	res->unmap	+= add->unmap;
 	res->intron     += add->intron;
 	res->intergenic += add->intergenic;
-	__VERBOSE("\rNumber of processed reads: %ld", res->nread);
+	if ((res->nread / 1000000) > res->s)  {
+		res->s += 1;
+		__VERBOSE("Number of processed reads: %d million reads\n", res->s);
+	}
 }
 
 void init_bwt(const char *path, int32_t count_intron)

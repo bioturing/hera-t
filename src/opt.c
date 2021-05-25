@@ -25,10 +25,6 @@ void print_info()
 	__VERBOSE("This is an academic version, which is free for academic labs\n");
 	__VERBOSE("No IP or commercial work can be derived from using this free academic version\n");
 	__VERBOSE("If you are using Hera-T for IP or commercial related work, please contact\ninfo@bioturing.com to obtain a license\n");
-	// __VERBOSE("This is an academic version, which is free for academic labs. No IP or\n");
-	// __VERBOSE("commercial work can be derived from using this free academic version. If you are\n");
-	// __VERBOSE("using Hera-T for IP or commercial related work, please contact\n");
-	// __VERBOSE("info@bioturing.com to obtain a license\n");
 	__VERBOSE("Cite Hera-T paper at: https://doi.org/10.1101/530501\n");
 	__VERBOSE("Version: %d.%d.%d\n", PROG_VERSION_MAJOR, PROG_VERSION_MINOR, PROG_VERSION_FIX);
 	__VERBOSE("\n");
@@ -86,6 +82,7 @@ static struct opt_count_t *init_opt_count()
 	opt->is_dump_align = 0;
 	opt->count_intron = 0;
 	opt->left_file = opt->right_file = NULL;
+	opt->log_file = "herat.log";
 	return opt;
 }
 
@@ -267,6 +264,10 @@ struct opt_count_t *get_opt_count(int argc, char *argv[])
 			if (!check_valid_library(type))
 				__OPT_ERROR("Invalid library type");
 			opt->lib = get_library(type);
+			pos += 2;
+		} else if (!strcmp(argv[pos], "--log")) {
+			opt_check_str(argc - pos, argv + pos);
+			opt->log_file = argv[pos + 1];
 			pos += 2;
 		} else if (!strcmp(argv[pos], "--dump-align")) {
 			opt->is_dump_align = 1;
