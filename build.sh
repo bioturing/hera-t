@@ -8,7 +8,8 @@ cd build
 
 mkdir -p zlib
 cd zlib
-CFLAGS=-fPIC ../../zlib/configure --prefix=../../local
+LOCAL_DIR="../../local_unix"
+CFLAGS=-fPIC ../../zlib/configure --prefix=${LOCAL_DIR}
 make
 make install
 cd ..
@@ -19,8 +20,8 @@ cd libdivsufsort
 cmake -DCMAKE_INSTALL_PREFIX:PATH=./ -DBUILD_SHARED_LIBS:BOOL=OFF -DCMAKE_BUILD_TYPE="Release" -DBUILD_DIVSUFSORT64:BOOL=ON ./
 make
 make install
-cp lib/libdivsufsort64.a ../../local/lib/
-cp include/divsufsort64.h ../../local/include/
+cp lib/libdivsufsort64.a ${LOCAL_DIR}/lib/
+cp include/divsufsort64.h ${LOCAL_DIR}/include/
 cd ..
 
 cd ..
