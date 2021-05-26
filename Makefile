@@ -4,10 +4,10 @@ CPP = cpp
 
 AR = ar
 
-LIBS = -pthread -flto -lm local/lib/libz.a local/lib/libdivsufsort64.a
+LIBS = -pthread -flto -lm local_unix/lib/libz.a local_unix/lib/libdivsufsort64.a
 #-fsanitize=undefined,address
 
-CFLAGS = -Wfatal-errors -Wextra -Wall -fPIC -std=gnu99 -O2 -Ilocal/include/ -Isrc/
+CFLAGS = -Wfatal-errors -Wextra -Wall -fPIC -std=gnu99 -O2 -Ilocal_unix/include/ -Isrc/
 #-g
 
 EXEC = hera-T
