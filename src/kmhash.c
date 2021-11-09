@@ -178,7 +178,6 @@ void *kmresize_worker(void *data)
 	for (i = l; i < r; ++i) {
 		h->bucks[h->old_size + i].idx = TOMB_STONE;
 		h->bucks[h->old_size + i].umis = NULL;
-		pthread_mutex_init(&(h->bucks[h->old_size + i].lock), NULL);
 	}
 
 	cap = h->old_size / bundle->n_threads + 1;
@@ -296,7 +295,6 @@ void kmhash_resize_single(struct kmhash_t *h)
 	for (i = old_size; i < h->size; ++i) {
 		h->bucks[i].idx = TOMB_STONE;
 		h->bucks[i].umis = NULL;
-		pthread_mutex_init(&(h->bucks[i].lock), NULL);
 	}
 
 	for (i = 0; i < old_size; ++i)
@@ -415,10 +413,14 @@ static void umihash_resize(struct umi_hash_t *h)
 	free(flag);
 }
 
-static void internal_kmhash_put_umi(struct kmbucket_t *b, kmkey_t umi)
+static void internal_kmhash_put_umi(struct kmhash_t *h, kmint_t bucket_location, kmkey_t umi)
 {
 	kmint_t k;
-	pthread_mutex_lock(&(b->lock));
+	struct kmbucket_t *b;
+	pthread_mutex_t *lock_bucket;
+	b = h->bucks + bucket_location;
+	lock_bucket = h->shared_bucket_locks + (bucket_location & KMHASH_N_SHARED_BUCKET_LOCKS_MASK);
+	pthread_mutex_lock(lock_bucket);
 	if (b->umis == NULL)
 		b->umis = init_umi_hash();
 	k = internal_umihash_put(b->umis, umi);
@@ -426,7 +428,7 @@ static void internal_kmhash_put_umi(struct kmbucket_t *b, kmkey_t umi)
 		umihash_resize(b->umis);
 		k = internal_umihash_put(b->umis, umi);
 	}
-	pthread_mutex_unlock(&(b->lock));
+	pthread_mutex_unlock(lock_bucket);
 }
 
 void umihash_put_umi_single(struct umi_hash_t *h, kmkey_t key)
@@ -446,7 +448,7 @@ void kmhash_put_bc_umi(struct kmhash_t *h, pthread_mutex_t *lock,
 	pthread_mutex_lock(lock);
 	k = internal_kmhash_put(h, bc);
 	if (k != KMHASH_MAX_SIZE)
-		internal_kmhash_put_umi(h->bucks + k, umi);
+		internal_kmhash_put_umi(h, k, umi);
 	pthread_mutex_unlock(lock);
 
 	while (k == KMHASH_MAX_SIZE) {
@@ -457,7 +459,7 @@ void kmhash_put_bc_umi(struct kmhash_t *h, pthread_mutex_t *lock,
 		pthread_mutex_lock(lock);
 		k = internal_kmhash_put(h, bc);
 		if (k != KMHASH_MAX_SIZE)
-			internal_kmhash_put_umi(h->bucks + k, umi);
+			internal_kmhash_put_umi(h, k, umi);
 		pthread_mutex_unlock(lock);
 	}
 }
@@ -474,13 +476,15 @@ struct kmhash_t *init_kmhash(kmint_t size, int n_threads)
 	for (i = 0; i < h->size; ++i) {
 		h->bucks[i].idx = TOMB_STONE;
 		h->bucks[i].umis = NULL;
-		pthread_mutex_init(&(h->bucks[i].lock), NULL);
 	}
 	h->n_workers = n_threads;
 	h->locks = calloc(h->n_workers, sizeof(pthread_mutex_t));
 	int k;
 	for (k = 0; k < h->n_workers; ++k)
 		pthread_mutex_init(h->locks + k, NULL);
+	h->shared_bucket_locks = calloc(KMHASH_N_SHARED_BUCKET_LOCKS, sizeof(pthread_mutex_t));
+	for (k = 0; k < KMHASH_N_SHARED_BUCKET_LOCKS; ++k)
+		pthread_mutex_init(h->shared_bucket_locks + k, NULL);
 	h->status = KMHASH_IDLE;
 	return h;
 }
@@ -497,14 +501,16 @@ void kmhash_destroy(struct kmhash_t *h)
 	if (!h) return;
 	kmint_t i;
 	for (i = 0; i < h->size; ++i) {
-		pthread_mutex_destroy(&(h->bucks[i].lock));
 		umihash_destroy(h->bucks[i].umis);
 	}
 	free(h->bucks);
 	int k;
 	for (k = 0; k < h->n_workers; ++k)
 		pthread_mutex_destroy(h->locks + k);
+	for (k = 0; k < KMHASH_N_SHARED_BUCKET_LOCKS; ++k)
+		pthread_mutex_destroy(h->shared_bucket_locks + k);
 	free(h->locks);
+	free(h->shared_bucket_locks);
 	free(h->pos);
 	free(h);
 }
