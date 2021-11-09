@@ -14,10 +14,12 @@ typedef uint32_t kmint_t;
 #define __sync_val_compare_and_swap_kmint __sync_val_compare_and_swap32
 #define __sync_bool_compare_and_swap_kmint __sync_bool_compare_and_swap32
 
-#define KMHASH_MAX_SIZE			UINT32_C(0x80000000)
-#define KMHASH_UMIHASH_SIZE		UINT32_C(0x10)
-#define KMHASH_KMHASH_SIZE		UINT32_C(0x10000)
-#define KMHASH_SINGLE_RESIZE		UINT32_C(0x100000)
+#define KMHASH_MAX_SIZE				UINT32_C(0x80000000)
+#define KMHASH_UMIHASH_SIZE			UINT32_C(0x10)
+#define KMHASH_KMHASH_SIZE			UINT32_C(0x10000)
+#define KMHASH_SINGLE_RESIZE			UINT32_C(0x100000)
+#define KMHASH_N_SHARED_BUCKET_LOCKS		UINT32_C(0x4000)
+#define KMHASH_N_SHARED_BUCKET_LOCKS_MASK	(UINT32_C(0x4000) - 1)
 
 #define KMHASH_UPPER			0.77
 
@@ -37,7 +39,6 @@ struct umi_hash_t {
 
 struct kmbucket_t {
 	kmkey_t idx;
-	pthread_mutex_t lock;
 	struct umi_hash_t *umis;
 };
 
@@ -51,8 +52,10 @@ struct kmhash_t {
 	uint8_t *flag;
 	int status;
 	int n_workers;
+	int n_bucket_shared_locks;
 	// struct sem_wrap_t gsem;
 	pthread_mutex_t *locks;
+	pthread_mutex_t *shared_bucket_locks;
 	int *pos;
 };
 
