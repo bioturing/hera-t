@@ -251,7 +251,7 @@ void print_genes(const char *out_dir)
 	int i;
 
 	strcpy(out_path, out_dir);
-	strcat(out_path, "/genes.tsv");
+	strcat(out_path, "/features.tsv");
 
 	fp = xfopen(out_path, "w");
 
